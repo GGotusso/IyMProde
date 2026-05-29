@@ -14,6 +14,7 @@
       <button data-view="predictions" class="nav-btn active">Mis pronósticos</button>
       <button data-view="ranking" class="nav-btn">Ranking</button>
       <button data-view="mundial" class="nav-btn">Mundial</button>
+      <button data-view="reglas" class="nav-btn">Reglas</button>
       <button data-view="admin" class="nav-btn hidden" id="nav-admin">Admin</button>
     </nav>
     <div class="user-box">
@@ -80,7 +81,6 @@
       <div class="view-head"><h2>Mundial 2026</h2></div>
 
       <h3 class="block-title">⏱️ Próximos partidos</h3>
-      <p class="muted small">Las <b>cuotas</b> (1 · X · 2) son orientativas, de la API. Menor cuota = favorito.</p>
       <div id="upcoming-list" class="matches"></div>
 
       <h3 class="block-title">📊 Posiciones por grupo</h3>
@@ -92,11 +92,47 @@
       <p id="meta-updated" class="muted small"></p>
     </section>
 
+    <!-- =================== REGLAS =================== -->
+    <section id="view-reglas" class="view hidden">
+      <div class="view-head"><h2>📋 Reglas</h2></div>
+
+      <div class="rules">
+        <h3 class="block-title">🎯 Cómo se suman los puntos</h3>
+        <ul>
+          <li><b>3 puntos</b> — marcador <b>exacto</b> (predijiste 2-1 y salió 2-1).</li>
+          <li><b>1 punto</b> — acertaste el <b>resultado</b> (quién gana, o que es empate) pero no el marcador exacto.</li>
+          <li><b>0 puntos</b> — erraste el resultado.</li>
+        </ul>
+        <p class="muted small">Ejemplo: salió <b>2-0</b>. Si pusiste 2-0 → 3 pts; si pusiste 1-0 o 3-1 (gana el mismo) → 1 pt; si pusiste 0-1 o 1-1 → 0 pts.</p>
+
+        <h3 class="block-title">⏰ Hasta cuándo se puede pronosticar</h3>
+        <ul>
+          <li><b>Fase de grupos:</b> hasta el <b>inicio</b> de cada partido. Una vez que arranca, ese pronóstico queda <b>cerrado</b> 🔒.</li>
+          <li><b>Eliminatorias</b> (16avos, octavos, cuartos, semis, 3° puesto y final): los equipos se conocen recién cuando avanza el cuadro, así que <b>se habilitan 2 días antes</b> de cada partido y se cierran al inicio. Antes de eso vas a ver “🔒 Se habilita …”.</li>
+        </ul>
+        <p class="muted small">Cada partido carga su propia fecha/hora; el cierre es individual, no por jornada.</p>
+
+        <h3 class="block-title">🏆 Rankings</h3>
+        <ul>
+          <li><b>Final:</b> suma de todos tus puntos del torneo. Desempata quien tenga más <b>marcadores exactos</b>.</li>
+          <li><b>Semanal:</b> los puntos de los partidos de esa semana, para una competencia paralela.</li>
+        </ul>
+
+        <h3 class="block-title">🔄 Resultados</h3>
+        <p>Los marcadores se <b>actualizan automáticamente</b> desde una API oficial (cada hora durante el Mundial). No los carga nadie a mano. Apenas se cierra un partido y llega el resultado, tus puntos aparecen solos.</p>
+
+        <h3 class="block-title">🔐 Tu cuenta</h3>
+        <p>Entrás con el <b>código del grupo</b> + tu <b>nombre</b> + un <b>PIN</b>. Guardá tu PIN: es lo que evita que otro edite tus pronósticos. Si lo olvidás, pedíselo al organizador.</p>
+      </div>
+    </section>
+
     <!-- ==================== ADMIN ==================== -->
     <section id="view-admin" class="view hidden">
-      <div class="view-head"><h2>Admin · Cargar resultados</h2></div>
-      <p class="muted">Cargá el marcador final de cada partido. El ranking se recalcula solo.
-        Para resolver llaves de eliminatoria, editá los equipos y guardá.</p>
+      <div class="view-head"><h2>Admin · Respaldo manual</h2></div>
+      <p class="muted">⚙️ Normalmente <b>no hace falta tocar nada acá</b>: los resultados y las
+        llaves de eliminatoria se cargan <b>solos</b> desde la API cada hora. Usá esto solo como
+        respaldo si la API se atrasa o trae algo mal; lo que cargues a mano se sobrescribe en la
+        próxima sincronización.</p>
       <div id="admin-list" class="matches"></div>
     </section>
   </main>

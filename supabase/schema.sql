@@ -54,14 +54,18 @@ create table if not exists public.matches (
   source      text not null default 'seed',     -- 'seed' (placeholder) | 'api' (sync automático)
   odds_home   numeric,                           -- cuota victoria local (1)
   odds_draw   numeric,                           -- cuota empate (X)
-  odds_away   numeric                            -- cuota victoria visitante (2)
+  odds_away   numeric,                            -- cuota victoria visitante (2)
+  home_crest  text,                               -- URL del escudo local
+  away_crest  text                                -- URL del escudo visitante
 );
 
 -- (Si ya creaste la tabla antes, esto agrega las columnas que falten)
-alter table public.matches add column if not exists source    text not null default 'seed';
-alter table public.matches add column if not exists odds_home numeric;
-alter table public.matches add column if not exists odds_draw numeric;
-alter table public.matches add column if not exists odds_away numeric;
+alter table public.matches add column if not exists source     text not null default 'seed';
+alter table public.matches add column if not exists odds_home  numeric;
+alter table public.matches add column if not exists odds_draw  numeric;
+alter table public.matches add column if not exists odds_away  numeric;
+alter table public.matches add column if not exists home_crest text;
+alter table public.matches add column if not exists away_crest text;
 
 -- Pronósticos de cada jugador para cada partido.
 create table if not exists public.predictions (
@@ -257,7 +261,9 @@ declare
   v_home   int;
   v_away   int;
   v_kick   timestamptz;
+  v_stage  text;
   v_saved  int := 0;
+  c_knockout_window constant interval := interval '2 days'; -- se habilita 2 días antes
 begin
   v_player := _player_by_token(p_token);
 
@@ -271,9 +277,13 @@ begin
       continue;
     end if;
 
-    select kickoff into v_kick from matches where id = v_mid;
+    select kickoff, stage into v_kick, v_stage from matches where id = v_mid;
     if v_kick is null or v_kick <= now() then
-      continue; -- partido inexistente o cerrado
+      continue; -- partido inexistente o ya cerrado (empezó)
+    end if;
+    -- eliminatorias: solo se habilitan 2 días antes del partido
+    if v_stage <> 'group' and now() < v_kick - c_knockout_window then
+      continue;
     end if;
 
     insert into predictions(player_id, match_id, home_goals, away_goals, updated_at)

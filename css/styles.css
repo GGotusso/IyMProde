@@ -124,17 +124,28 @@ table.rank td.pos { width: 2.5rem; color: var(--muted); font-weight: 700; }
 table.rank tr.me { background: rgba(52,211,153,.08); }
 table.rank tr:nth-child(1) td.pos { color: var(--gold); }
 
+/* ---------- escudos ---------- */
+.crest { width: 22px; height: 22px; object-fit: contain; flex: 0 0 auto; }
+.team.home .crest { order: 2; }     /* escudo del lado del centro */
+
 /* ---------- mundial ---------- */
 .block-title { margin: 1.6rem 0 .4rem; font-size: 1.05rem; }
 .score-box.vs { color: var(--muted); font-weight: 700; font-size: .85rem; }
-.odds { display: inline-flex; gap: .3rem; }
-.odd {
-  font-size: .72rem; font-weight: 700; padding: .12rem .45rem; border-radius: 8px;
-  background: var(--bg2); border: 1px solid var(--line); color: var(--accent2);
-}
-.standings { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+.standings { display: grid; gap: 1.1rem; }
 .standings-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: .6rem .9rem; }
+.standings-card .stage-title { margin: .2rem 0 .3rem; color: var(--gold); font-size: .95rem; }
 .standings-card table.rank th, .standings-card table.rank td { padding: .4rem .5rem; }
+.standings-card .team-cell { display: flex; align-items: center; gap: .45rem; }
+@media (min-width: 760px) {
+  .standings { grid-template-columns: 1fr 1fr; }
+}
+
+/* ---------- reglas ---------- */
+.rules { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: .4rem 1.2rem 1.2rem; }
+.rules .block-title { font-size: 1rem; }
+.rules ul { margin: .3rem 0; padding-left: 1.2rem; }
+.rules li { margin: .35rem 0; }
+.rules p { color: var(--txt); }
 
 /* ---------- misc ---------- */
 .status { padding: .6rem .9rem; border-radius: 10px; background: var(--bg2);

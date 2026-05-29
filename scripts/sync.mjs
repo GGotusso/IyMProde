@@ -96,6 +96,8 @@ function mapMatch(m) {
     odds_home: num(o.homeWin),
     odds_draw: num(o.draw),
     odds_away: num(o.awayWin),
+    home_crest: m.homeTeam?.crest || null,
+    away_crest: m.awayTeam?.crest || null,
     source: "api",
     sort_order:
       (STAGE_SORT[stage] ?? 9) * 10000 + (m.matchday ?? 0) * 100 + (m.id % 100),

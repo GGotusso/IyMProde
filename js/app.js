@@ -46,7 +46,24 @@ const fmtDate = (iso) =>
     weekday: "short", day: "2-digit", month: "short",
     hour: "2-digit", minute: "2-digit",
   });
-const isLocked = (m) => new Date(m.kickoff) <= new Date();
+const fmtDay = (iso) =>
+  new Date(iso).toLocaleString("es-AR", { day: "2-digit", month: "short" });
+
+// Eliminatorias: los pronósticos se habilitan 2 días antes del partido
+// (antes los equipos suelen estar "Por definir").
+const KNOCKOUT_WINDOW_MS = 2 * 24 * 60 * 60 * 1000;
+const started = (m) => new Date(m.kickoff) <= new Date();
+const opensAt = (m) =>
+  m.stage === "group" ? null : new Date(new Date(m.kickoff) - KNOCKOUT_WINDOW_MS);
+const notYetOpen = (m) => m.stage !== "group" && Date.now() < new Date(m.kickoff) - KNOCKOUT_WINDOW_MS;
+// Un partido se puede pronosticar si no empezó y (es de grupos o ya se habilitó).
+const canPredict = (m) => !started(m) && !notYetOpen(m);
+
+// <img> del escudo (o nada si no hay).
+function crestImg(url) {
+  if (!url) return document.createTextNode("");
+  return el("img", { className: "crest", src: url, alt: "", loading: "lazy" });
+}
 
 // =====================================================================
 //  ARRANQUE
@@ -184,7 +201,13 @@ function buildStageFilter() {
   const sel = $("#stage-filter");
   sel.innerHTML = "";
   sel.append(el("option", { value: "all" }, "Todas las fases"));
+  // grupos individuales
+  const groups = [...new Set(matches.filter((m) => m.stage === "group")
+    .map((m) => m.group_name))].filter(Boolean).sort();
+  for (const g of groups) sel.append(el("option", { value: "group:" + g }, "Grupo " + g));
+  // etapas de eliminatoria
   for (const st of STAGE_ORDER) {
+    if (st === "group") continue;
     if (matches.some((m) => m.stage === st))
       sel.append(el("option", { value: st }, STAGE_LABELS[st]));
   }
@@ -197,36 +220,56 @@ function groupByStage(list) {
   return groups;
 }
 
-function renderPredictions() {
-  const filter = $("#stage-filter").value;
-  const list = filter === "all" ? matches : matches.filter((m) => m.stage === filter);
-  const wrap = $("#matches-list");
-  wrap.innerHTML = "";
-  dirty.clear();
-
+// Renderiza la lista de partidos con títulos: la fase de grupos se separa por
+// "Grupo A", "Grupo B", …; las eliminatorias por su etapa. rowFn arma cada fila.
+function renderMatchSections(wrap, list, rowFn) {
   const byStage = groupByStage(list);
   for (const st of STAGE_ORDER) {
     if (!byStage[st]) continue;
-    wrap.append(el("div", { className: "stage-title" }, STAGE_LABELS[st]));
-    for (const m of byStage[st]) wrap.append(matchRow(m));
+    if (st === "group") {
+      const groups = [...new Set(byStage.group.map((m) => m.group_name))]
+        .filter(Boolean).sort();
+      for (const g of groups) {
+        wrap.append(el("div", { className: "stage-title" }, "Grupo " + g));
+        for (const m of byStage.group.filter((x) => x.group_name === g)) wrap.append(rowFn(m));
+      }
+    } else {
+      wrap.append(el("div", { className: "stage-title" }, STAGE_LABELS[st]));
+      for (const m of byStage[st]) wrap.append(rowFn(m));
+    }
   }
+}
+
+function renderPredictions() {
+  const filter = $("#stage-filter").value;
+  let list = matches;
+  if (filter.startsWith("group:")) {
+    const g = filter.slice(6);
+    list = matches.filter((m) => m.stage === "group" && m.group_name === g);
+  } else if (filter !== "all") {
+    list = matches.filter((m) => m.stage === filter);
+  }
+  const wrap = $("#matches-list");
+  wrap.innerHTML = "";
+  dirty.clear();
+  renderMatchSections(wrap, list, matchRow);
   updateStatus("");
 }
 
 function matchRow(m) {
-  const locked = isLocked(m);
+  const editable = canPredict(m);
   const pred = myPreds.get(m.id);
   const played = m.home_goals != null && m.away_goals != null;
 
-  const row = el("div", { className: "match" + (locked ? " locked" : "") });
+  const row = el("div", { className: "match" + (editable ? "" : " locked") });
 
   const homeInput = el("input", {
     type: "number", min: 0, max: 99, inputmode: "numeric",
-    value: pred ? pred.home : "", disabled: locked,
+    value: pred ? pred.home : "", disabled: !editable,
   });
   const awayInput = el("input", {
     type: "number", min: 0, max: 99, inputmode: "numeric",
-    value: pred ? pred.away : "", disabled: locked,
+    value: pred ? pred.away : "", disabled: !editable,
   });
   const onChange = () => {
     const h = homeInput.value === "" ? null : +homeInput.value;
@@ -238,10 +281,12 @@ function matchRow(m) {
   awayInput.addEventListener("input", onChange);
 
   row.append(
-    el("div", { className: "team home" }, el("span", { className: "name" }, m.home_team)),
+    el("div", { className: "team home" },
+      el("span", { className: "name" }, m.home_team), crestImg(m.home_crest)),
     el("div", { className: "score-box" },
       homeInput, el("span", { className: "sep" }, "–"), awayInput),
-    el("div", { className: "team away" }, el("span", { className: "name" }, m.away_team)),
+    el("div", { className: "team away" },
+      crestImg(m.away_crest), el("span", { className: "name" }, m.away_team)),
   );
 
   const meta = el("div", { className: "match-meta" });
@@ -251,8 +296,10 @@ function matchRow(m) {
     const pts = pred ? points(pred, m) : 0;
     right.append(el("span", { className: "badge" }, `Final ${m.home_goals}-${m.away_goals}`));
     if (pred) right.append(" ", el("span", { className: "badge points" }, `+${pts}`));
-  } else if (locked) {
+  } else if (started(m)) {
     right.append(el("span", { className: "badge lock" }, "🔒 Cerrado"));
+  } else if (notYetOpen(m)) {
+    right.append(el("span", { className: "badge lock" }, "🔒 Se habilita " + fmtDay(opensAt(m))));
   }
   meta.append(right);
   row.append(meta);
@@ -385,17 +432,6 @@ async function renderMundial() {
     : "Los datos de la API aparecen tras la primera sincronización.";
 }
 
-function oddsBadges(m) {
-  if (m.odds_home == null) return null;
-  const box = el("div", { className: "odds" });
-  box.append(
-    el("span", { className: "odd", title: "Gana local" }, "1 " + m.odds_home),
-    el("span", { className: "odd", title: "Empate" }, "X " + m.odds_draw),
-    el("span", { className: "odd", title: "Gana visitante" }, "2 " + m.odds_away),
-  );
-  return box;
-}
-
 function renderUpcoming() {
   const wrap = $("#upcoming-list");
   wrap.innerHTML = "";
@@ -408,14 +444,14 @@ function renderUpcoming() {
   for (const m of next) {
     const row = el("div", { className: "match" });
     row.append(
-      el("div", { className: "team home" }, el("span", { className: "name" }, m.home_team)),
+      el("div", { className: "team home" },
+        el("span", { className: "name" }, m.home_team), crestImg(m.home_crest)),
       el("div", { className: "score-box vs" }, "vs"),
-      el("div", { className: "team away" }, el("span", { className: "name" }, m.away_team)),
+      el("div", { className: "team away" },
+        crestImg(m.away_crest), el("span", { className: "name" }, m.away_team)),
     );
     const meta = el("div", { className: "match-meta" });
     meta.append(el("span", {}, fmtDate(m.kickoff)));
-    const odds = oddsBadges(m);
-    if (odds) meta.append(odds);
     row.append(meta);
     wrap.append(row);
   }
@@ -435,9 +471,13 @@ function renderStandings(standings) {
       th("#"), th("Equipo"), th("PJ", 1), th("DG", 1), th("Pts", 1))));
     const tbody = el("tbody");
     for (const t of g.table) {
+      const teamCell = el("td", {});
+      const inner = el("div", { className: "team-cell" });
+      inner.append(crestImg(t.team?.crest), el("span", {}, t.team?.name || ""));
+      teamCell.append(inner);
       tbody.append(rowOf("tr",
         el("td", { className: "pos" }, String(t.position)),
-        el("td", {}, t.team?.name || ""),
+        teamCell,
         el("td", { style: "text-align:right" }, String(t.playedGames)),
         el("td", { style: "text-align:right" }, String(t.goalDifference)),
         el("td", { className: "pts" }, String(t.points)),
@@ -479,12 +519,7 @@ function renderAdmin() {
   if (!session.is_admin) { showView("predictions"); return; }
   const wrap = $("#admin-list");
   wrap.innerHTML = "";
-  const byStage = groupByStage(matches);
-  for (const st of STAGE_ORDER) {
-    if (!byStage[st]) continue;
-    wrap.append(el("div", { className: "stage-title" }, STAGE_LABELS[st]));
-    for (const m of byStage[st]) wrap.append(adminRow(m));
-  }
+  renderMatchSections(wrap, matches, adminRow);
 }
 
 function adminRow(m) {

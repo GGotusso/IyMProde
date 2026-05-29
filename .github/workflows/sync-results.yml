@@ -1,0 +1,25 @@
+name: Sincronizar resultados del Mundial
+
+on:
+  schedule:
+    # Cada hora, en punto. El plan gratis de football-data.org entrega los
+    # datos con cierta demora, así que más seguido que esto no aporta mucho.
+    # (Sobra de margen: 10 llamadas/min y el sync hace ~3 por corrida.)
+    - cron: "0 * * * *"
+  workflow_dispatch: {}        # permite ejecutarlo a mano desde la pestaña Actions
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Ejecutar sincronizador
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FOOTBALL_DATA_TOKEN: ${{ secrets.FOOTBALL_DATA_TOKEN }}
+          SEASON: "2026"
+        run: node scripts/sync.mjs

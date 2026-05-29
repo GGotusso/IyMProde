@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prode Mundial 2026 ⚽</title>
+  <link rel="stylesheet" href="./css/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%BD%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+  <header id="topbar" class="hidden">
+    <div class="brand">⚽ Prode Mundial <span>2026</span></div>
+    <nav id="nav">
+      <button data-view="predictions" class="nav-btn active">Mis pronósticos</button>
+      <button data-view="ranking" class="nav-btn">Ranking</button>
+      <button data-view="mundial" class="nav-btn">Mundial</button>
+      <button data-view="admin" class="nav-btn hidden" id="nav-admin">Admin</button>
+    </nav>
+    <div class="user-box">
+      <span id="user-name"></span>
+      <button id="logout-btn" class="ghost">Salir</button>
+    </div>
+  </header>
+
+  <main id="app">
+    <!-- ===================== LOGIN ===================== -->
+    <section id="view-login" class="view login-wrap">
+      <div class="login-card">
+        <h1>⚽ Prode Mundial 2026</h1>
+        <p class="muted">Entrá con el código del grupo, tu nombre y un PIN personal.
+          El PIN evita que otro pise tus pronósticos.</p>
+        <form id="login-form">
+          <label>Código del grupo
+            <input id="f-code" type="text" autocomplete="off" placeholder="Ej: MUNDIAL2026" required />
+          </label>
+          <label>Tu nombre
+            <input id="f-name" type="text" autocomplete="off" placeholder="Ej: Gonza" required />
+          </label>
+          <label>PIN (mín. 4 dígitos)
+            <input id="f-pin" type="password" inputmode="numeric" autocomplete="off" placeholder="••••" required />
+          </label>
+          <button type="submit" class="primary">Entrar / Registrarme</button>
+          <p id="login-error" class="error hidden"></p>
+        </form>
+        <p class="hint">¿Primera vez? Se crea tu usuario. ¿Ya entraste antes? Usá el mismo nombre y PIN.</p>
+      </div>
+    </section>
+
+    <!-- ================= PRONÓSTICOS ================= -->
+    <section id="view-predictions" class="view hidden">
+      <div class="view-head">
+        <h2>Mis pronósticos</h2>
+        <div class="actions">
+          <select id="stage-filter"></select>
+          <button id="save-btn" class="primary">Guardar cambios</button>
+        </div>
+      </div>
+      <p id="pred-status" class="status hidden"></p>
+      <div id="matches-list" class="matches"></div>
+    </section>
+
+    <!-- =================== RANKING =================== -->
+    <section id="view-ranking" class="view hidden">
+      <div class="view-head">
+        <h2>Ranking</h2>
+        <div class="actions">
+          <div class="tabs">
+            <button class="tab active" data-rank="final">Final</button>
+            <button class="tab" data-rank="weekly">Semanal</button>
+          </div>
+          <select id="week-filter" class="hidden"></select>
+        </div>
+      </div>
+      <div id="ranking-table"></div>
+      <p class="muted small">Puntaje: <b>3</b> por marcador exacto · <b>1</b> por acertar el resultado (ganador/empate) · <b>0</b> si errás.</p>
+    </section>
+
+    <!-- =================== MUNDIAL =================== -->
+    <section id="view-mundial" class="view hidden">
+      <div class="view-head"><h2>Mundial 2026</h2></div>
+
+      <h3 class="block-title">⏱️ Próximos partidos</h3>
+      <p class="muted small">Las <b>cuotas</b> (1 · X · 2) son orientativas, de la API. Menor cuota = favorito.</p>
+      <div id="upcoming-list" class="matches"></div>
+
+      <h3 class="block-title">📊 Posiciones por grupo</h3>
+      <div id="standings-list" class="standings"></div>
+
+      <h3 class="block-title">⚽ Goleadores</h3>
+      <div id="scorers-list"></div>
+
+      <p id="meta-updated" class="muted small"></p>
+    </section>
+
+    <!-- ==================== ADMIN ==================== -->
+    <section id="view-admin" class="view hidden">
+      <div class="view-head"><h2>Admin · Cargar resultados</h2></div>
+      <p class="muted">Cargá el marcador final de cada partido. El ranking se recalcula solo.
+        Para resolver llaves de eliminatoria, editá los equipos y guardá.</p>
+      <div id="admin-list" class="matches"></div>
+    </section>
+  </main>
+
+  <footer><span id="conn-status"></span></footer>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

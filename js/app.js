@@ -417,6 +417,7 @@ function renderRankTable(wrap, rows, headers, cols, idOf) {
 // =====================================================================
 async function renderMundial() {
   renderUpcoming();
+  renderStandings();                       // calculadas por grupo desde matches
   const { data, error } = await sb
     .from("meta_cache").select("key,data,updated_at");
   const cache = {};
@@ -425,11 +426,47 @@ async function renderMundial() {
     cache[r.key] = r.data;
     if (!updatedAt || r.updated_at > updatedAt) updatedAt = r.updated_at;
   }
-  renderStandings(cache.standings);
   renderScorers(cache.scorers);
   $("#meta-updated").textContent = updatedAt
-    ? "Datos de la API actualizados: " + fmtDate(updatedAt)
+    ? "Datos actualizados: " + fmtDate(updatedAt)
     : "Los datos de la API aparecen tras la primera sincronización.";
+}
+
+// Mapa equipo -> escudo, a partir de los partidos.
+function crestMap() {
+  const map = {};
+  for (const m of matches) {
+    if (m.home_crest) map[m.home_team] = m.home_crest;
+    if (m.away_crest) map[m.away_team] = m.away_crest;
+  }
+  return map;
+}
+
+// Calcula las tablas de posiciones por grupo (A..L) desde los resultados.
+function computeStandings() {
+  const groups = {};
+  for (const m of matches.filter((x) => x.stage === "group")) {
+    const g = m.group_name;
+    (groups[g] ||= {});
+    for (const t of [m.home_team, m.away_team]) {
+      groups[g][t] ||= { team: t, pj: 0, gf: 0, ga: 0, pts: 0 };
+    }
+    if (m.home_goals != null && m.away_goals != null) {
+      const H = groups[g][m.home_team], A = groups[g][m.away_team];
+      H.pj++; A.pj++;
+      H.gf += m.home_goals; H.ga += m.away_goals;
+      A.gf += m.away_goals; A.ga += m.home_goals;
+      if (m.home_goals > m.away_goals) H.pts += 3;
+      else if (m.home_goals < m.away_goals) A.pts += 3;
+      else { H.pts++; A.pts++; }
+    }
+  }
+  return Object.keys(groups).sort().map((g) => ({
+    group: g,
+    rows: Object.values(groups[g]).sort((a, b) =>
+      b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf
+      || a.team.localeCompare(b.team)),
+  }));
 }
 
 function renderUpcoming() {
@@ -457,32 +494,32 @@ function renderUpcoming() {
   }
 }
 
-function renderStandings(standings) {
+function renderStandings() {
   const wrap = $("#standings-list");
   wrap.innerHTML = "";
-  const groups = (standings || []).filter((s) => s.type === "TOTAL" && s.table?.length);
-  if (!groups.length) { wrap.innerHTML = `<p class="muted">Las posiciones aparecen cuando arranca el Mundial.</p>`; return; }
+  const groups = computeStandings();
+  if (!groups.length) { wrap.innerHTML = `<p class="muted">Todavía no hay grupos cargados.</p>`; return; }
+  const crests = crestMap();
   for (const g of groups) {
     const card = el("div", { className: "standings-card" });
-    const name = (g.group || "").replace(/_/g, " ");
-    card.append(el("div", { className: "stage-title" }, name || "Tabla"));
+    card.append(el("div", { className: "stage-title" }, "Grupo " + g.group));
     const table = el("table", { className: "rank" });
     table.append(el("thead", {}, rowOf("tr",
       th("#"), th("Equipo"), th("PJ", 1), th("DG", 1), th("Pts", 1))));
     const tbody = el("tbody");
-    for (const t of g.table) {
+    g.rows.forEach((t, i) => {
       const teamCell = el("td", {});
       const inner = el("div", { className: "team-cell" });
-      inner.append(crestImg(t.team?.crest), el("span", {}, t.team?.name || ""));
+      inner.append(crestImg(crests[t.team]), el("span", {}, t.team));
       teamCell.append(inner);
       tbody.append(rowOf("tr",
-        el("td", { className: "pos" }, String(t.position)),
+        el("td", { className: "pos" }, String(i + 1)),
         teamCell,
-        el("td", { style: "text-align:right" }, String(t.playedGames)),
-        el("td", { style: "text-align:right" }, String(t.goalDifference)),
-        el("td", { className: "pts" }, String(t.points)),
+        el("td", { style: "text-align:right" }, String(t.pj)),
+        el("td", { style: "text-align:right" }, String(t.gf - t.ga)),
+        el("td", { className: "pts" }, String(t.pts)),
       ));
-    }
+    });
     table.append(tbody);
     card.append(table);
     wrap.append(card);

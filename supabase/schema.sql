@@ -175,7 +175,7 @@ returns text language sql immutable as $$ select lower(trim(t)); $$;
 create or replace function public.join_group(
   p_code text, p_name text, p_pin text
 ) returns table(player_id uuid, name text, token uuid, is_admin boolean)
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_code   text;
   v_player players%rowtype;
@@ -218,7 +218,7 @@ $$;
 create or replace function public.login(
   p_name text, p_pin text
 ) returns table(player_id uuid, name text, token uuid, is_admin boolean)
-language plpgsql security definer set search_path = public as $$
+language plpgsql security definer set search_path = public, extensions as $$
 declare
   v_player players%rowtype;
   v_token  uuid := gen_random_uuid();

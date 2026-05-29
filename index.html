@@ -1,17 +1,17 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Prode Mundial 2026 âš½</title>
+  <title>Prode Mundial 2026 ⚽</title>
   <link rel="stylesheet" href="./css/styles.css?v=5" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%BD%3C/text%3E%3C/svg%3E" />
 </head>
 <body>
   <header id="topbar" class="hidden">
-    <div class="brand">âš½ Prode Mundial <span>2026</span></div>
+    <div class="brand">⚽ Prode Mundial <span>2026</span></div>
     <nav id="nav">
-      <button data-view="predictions" class="nav-btn active">Mis pronÃ³sticos</button>
+      <button data-view="predictions" class="nav-btn active">Mis pronósticos</button>
       <button data-view="ranking" class="nav-btn">Ranking</button>
       <button data-view="especiales" class="nav-btn">Especiales</button>
       <button data-view="mundial" class="nav-btn">Mundial</button>
@@ -28,30 +28,30 @@
     <!-- ===================== LOGIN ===================== -->
     <section id="view-login" class="view login-wrap">
       <div class="login-card">
-        <h1>âš½ Prode Mundial 2026</h1>
-        <p class="muted">EntrÃ¡ con el cÃ³digo del grupo, tu nombre y un PIN personal.
-          El PIN evita que otro pise tus pronÃ³sticos.</p>
+        <h1>⚽ Prode Mundial 2026</h1>
+        <p class="muted">Entrá con el código del grupo, tu nombre y un PIN personal.
+          El PIN evita que otro pise tus pronósticos.</p>
         <form id="login-form">
-          <label>CÃ³digo del grupo
+          <label>Código del grupo
             <input id="f-code" type="text" autocomplete="off" placeholder="Ej: MUNDIAL2026" required />
           </label>
           <label>Tu nombre
             <input id="f-name" type="text" autocomplete="off" placeholder="Ej: Gonza" required />
           </label>
-          <label>PIN (mÃ­n. 4 dÃ­gitos)
-            <input id="f-pin" type="password" inputmode="numeric" autocomplete="off" placeholder="â€¢â€¢â€¢â€¢" required />
+          <label>PIN (mín. 4 dígitos)
+            <input id="f-pin" type="password" inputmode="numeric" autocomplete="off" placeholder="••••" required />
           </label>
           <button type="submit" class="primary">Entrar / Registrarme</button>
           <p id="login-error" class="error hidden"></p>
         </form>
-        <p class="hint">Â¿Primera vez? Se crea tu usuario. Â¿Ya entraste antes? UsÃ¡ el mismo nombre y PIN.</p>
+        <p class="hint">¿Primera vez? Se crea tu usuario. ¿Ya entraste antes? Usá el mismo nombre y PIN.</p>
       </div>
     </section>
 
-    <!-- ================= PRONÃ“STICOS ================= -->
+    <!-- ================= PRONÓSTICOS ================= -->
     <section id="view-predictions" class="view hidden">
       <div class="view-head">
-        <h2>Mis pronÃ³sticos</h2>
+        <h2>Mis pronósticos</h2>
         <div class="actions">
           <select id="stage-filter"></select>
           <button id="save-btn" class="primary">Guardar cambios</button>
@@ -63,15 +63,15 @@
 
     <!-- =================== RANKING =================== -->
     <section id="view-ranking" class="view hidden">
-      <div class="view-head"><h2>ðŸ† Ranking general</h2></div>
+      <div class="view-head"><h2>🏆 Ranking general</h2></div>
       <div id="ranking-table"></div>
-      <p class="muted small">Puntaje: <b>3</b> por marcador exacto Â· <b>1</b> por acertar el resultado Â· <b>0</b> si errÃ¡s Â· mÃ¡s los puntos de los pronÃ³sticos especiales.</p>
+      <p class="muted small">Puntaje: <b>3</b> por marcador exacto · <b>1</b> por acertar el resultado · <b>0</b> si errás · más los puntos de los pronósticos especiales.</p>
     </section>
 
     <!-- ================= ESPECIALES ================= -->
     <section id="view-especiales" class="view hidden">
       <div class="view-head">
-        <h2>â­ PronÃ³sticos especiales</h2>
+        <h2>⭐ Pronósticos especiales</h2>
         <button id="save-special-btn" class="primary">Guardar</button>
       </div>
       <p class="muted" id="special-deadline"></p>
@@ -83,13 +83,13 @@
     <section id="view-mundial" class="view hidden">
       <div class="view-head"><h2>Mundial 2026</h2></div>
 
-      <h3 class="block-title">â±ï¸ PrÃ³ximos partidos</h3>
+      <h3 class="block-title">⏱️ Próximos partidos</h3>
       <div id="upcoming-list" class="matches"></div>
 
-      <h3 class="block-title">ðŸ“Š Posiciones por grupo</h3>
+      <h3 class="block-title">📊 Posiciones por grupo</h3>
       <div id="standings-list" class="standings"></div>
 
-      <h3 class="block-title">âš½ Goleadores</h3>
+      <h3 class="block-title">⚽ Goleadores</h3>
       <div id="scorers-list"></div>
 
       <p id="meta-updated" class="muted small"></p>
@@ -97,80 +97,80 @@
 
     <!-- =================== REGLAS =================== -->
     <section id="view-reglas" class="view hidden">
-      <div class="view-head"><h2>ðŸ“‹ Reglas</h2></div>
+      <div class="view-head"><h2>📋 Reglas</h2></div>
 
-      <p class="muted rules-intro">PronosticÃ¡ el marcador de cada partido y sumÃ¡ puntos. El que mÃ¡s junta, gana. ðŸ‘‡</p>
+      <p class="muted rules-intro">Pronosticá el marcador de cada partido y sumá puntos. El que más junta, gana. 👇</p>
 
       <!-- Puntaje por partido -->
       <div class="rule-card">
-        <div class="rule-head"><span class="rule-ico">ðŸŽ¯</span><h3>Puntos por partido</h3></div>
+        <div class="rule-head"><span class="rule-ico">🎯</span><h3>Puntos por partido</h3></div>
         <div class="score-grid">
           <div class="score-item"><span class="pts big">3</span><div><b>Marcador exacto</b><br><span class="muted small">Le pegaste al resultado clavado</span></div></div>
-          <div class="score-item"><span class="pts big">1</span><div><b>Acertaste el resultado</b><br><span class="muted small">QuiÃ©n gana (o empate), pero no el marcador</span></div></div>
-          <div class="score-item"><span class="pts big zero">0</span><div><b>Erraste</b><br><span class="muted small">No acertaste quiÃ©n ganaba</span></div></div>
+          <div class="score-item"><span class="pts big">1</span><div><b>Acertaste el resultado</b><br><span class="muted small">Quién gana (o empate), pero no el marcador</span></div></div>
+          <div class="score-item"><span class="pts big zero">0</span><div><b>Erraste</b><br><span class="muted small">No acertaste quién ganaba</span></div></div>
         </div>
         <div class="example-box">
-          <b>Ejemplo:</b> saliÃ³ <b>2-0</b> â†’
+          <b>Ejemplo:</b> salió <b>2-0</b> →
           <span class="ex"><b>2-0</b> = <span class="pts">3</span></span>
           <span class="ex"><b>1-0</b> o <b>3-1</b> = <span class="pts">1</span></span>
           <span class="ex"><b>0-1</b> o <b>1-1</b> = <span class="pts zero">0</span></span>
         </div>
       </div>
 
-      <!-- Hasta cuÃ¡ndo -->
+      <!-- Hasta cuándo -->
       <div class="rule-card">
-        <div class="rule-head"><span class="rule-ico">â°</span><h3>Hasta cuÃ¡ndo pronosticar</h3></div>
+        <div class="rule-head"><span class="rule-ico">⏰</span><h3>Hasta cuándo pronosticar</h3></div>
         <div class="two-col">
           <div class="mini-card">
             <b>Fase de grupos</b>
-            <p class="muted small">Hasta el <b>inicio</b> de cada partido. Cuando arranca, queda ðŸ”’ cerrado.</p>
+            <p class="muted small">Hasta el <b>inicio</b> de cada partido. Cuando arranca, queda 🔒 cerrado.</p>
           </div>
           <div class="mini-card">
             <b>Eliminatorias</b>
-            <p class="muted small">Se habilitan <b>2 dÃ­as antes</b> de cada partido (los equipos se definen reciÃ©n ahÃ­) y cierran al inicio.</p>
+            <p class="muted small">Se habilitan <b>2 días antes</b> de cada partido (los equipos se definen recién ahí) y cierran al inicio.</p>
           </div>
         </div>
-        <p class="muted small">El cierre es individual por partido, segÃºn su fecha y hora.</p>
+        <p class="muted small">El cierre es individual por partido, según su fecha y hora.</p>
       </div>
 
       <!-- Especiales -->
       <div class="rule-card">
-        <div class="rule-head"><span class="rule-ico">â­</span><h3>PronÃ³sticos especiales</h3></div>
-        <p class="muted small">Se cargan en la pestaÃ±a <b>Especiales</b> y cierran al <b>inicio del Mundial</b>. Suman al ranking general.</p>
+        <div class="rule-head"><span class="rule-ico">⭐</span><h3>Pronósticos especiales</h3></div>
+        <p class="muted small">Se cargan en la pestaña <b>Especiales</b> y cierran al <b>inicio del Mundial</b>. Suman al ranking general.</p>
         <ul class="rule-list">
-          <li><span class="pts">15</span> CampeÃ³n del Mundial</li>
+          <li><span class="pts">15</span> Campeón del Mundial</li>
           <li><span class="pts">6</span> Cada finalista correcto (son 2)</li>
           <li><span class="pts">4</span> Cada semifinalista correcto (son 4)</li>
-          <li><span class="pts">3</span><span class="pts">2</span> 1Âº y 2Âº de cada grupo (3 pts el 1Âº, 2 pts el 2Âº)</li>
+          <li><span class="pts">3</span><span class="pts">2</span> 1º y 2º de cada grupo (3 pts el 1º, 2 pts el 2º)</li>
           <li><span class="pts">10</span> Goleador del torneo (Bota de Oro)</li>
         </ul>
       </div>
 
-      <!-- Ranking + automÃ¡tico + cuenta -->
+      <!-- Ranking + automático + cuenta -->
       <div class="two-col">
         <div class="rule-card">
-          <div class="rule-head"><span class="rule-ico">ðŸ†</span><h3>Ranking</h3></div>
-          <p class="muted small">Suma de <b>todos</b> tus puntos (partidos + especiales), ordenado de mayor a menor con todos los jugadores. Desempata quien tenga mÃ¡s <b>marcadores exactos</b>.</p>
+          <div class="rule-head"><span class="rule-ico">🏆</span><h3>Ranking</h3></div>
+          <p class="muted small">Suma de <b>todos</b> tus puntos (partidos + especiales), ordenado de mayor a menor con todos los jugadores. Desempata quien tenga más <b>marcadores exactos</b>.</p>
         </div>
         <div class="rule-card">
-          <div class="rule-head"><span class="rule-ico">ðŸ”„</span><h3>Resultados automÃ¡ticos</h3></div>
+          <div class="rule-head"><span class="rule-ico">🔄</span><h3>Resultados automáticos</h3></div>
           <p class="muted small">Los marcadores se actualizan <b>solos</b> desde una API oficial cada hora. Apenas termina un partido, tus puntos aparecen.</p>
         </div>
       </div>
 
       <div class="rule-card">
-        <div class="rule-head"><span class="rule-ico">ðŸ”</span><h3>Tu cuenta</h3></div>
-        <p class="muted small">EntrÃ¡s con el <b>cÃ³digo del grupo</b> + tu <b>nombre</b> + un <b>PIN</b>. GuardÃ¡ el PIN: evita que otro edite tus pronÃ³sticos.</p>
+        <div class="rule-head"><span class="rule-ico">🔐</span><h3>Tu cuenta</h3></div>
+        <p class="muted small">Entrás con el <b>código del grupo</b> + tu <b>nombre</b> + un <b>PIN</b>. Guardá el PIN: evita que otro edite tus pronósticos.</p>
       </div>
     </section>
 
     <!-- ==================== ADMIN ==================== -->
     <section id="view-admin" class="view hidden">
-      <div class="view-head"><h2>Admin Â· Respaldo manual</h2></div>
-      <p class="muted">âš™ï¸ Normalmente <b>no hace falta tocar nada acÃ¡</b>: los resultados y las
-        llaves de eliminatoria se cargan <b>solos</b> desde la API cada hora. UsÃ¡ esto solo como
+      <div class="view-head"><h2>Admin · Respaldo manual</h2></div>
+      <p class="muted">⚙️ Normalmente <b>no hace falta tocar nada acá</b>: los resultados y las
+        llaves de eliminatoria se cargan <b>solos</b> desde la API cada hora. Usá esto solo como
         respaldo si la API se atrasa o trae algo mal; lo que cargues a mano se sobrescribe en la
-        prÃ³xima sincronizaciÃ³n.</p>
+        próxima sincronización.</p>
       <div id="admin-list" class="matches"></div>
     </section>
   </main>

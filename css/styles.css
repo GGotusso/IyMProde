@@ -155,11 +155,39 @@ table.rank tr:nth-child(1) td.pos { color: var(--gold); }
 .group-pick-row select { flex: 1 1 auto; min-width: 0; }
 
 /* ---------- reglas ---------- */
-.rules { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: .4rem 1.2rem 1.2rem; }
-.rules .block-title { font-size: 1rem; }
-.rules ul { margin: .3rem 0; padding-left: 1.2rem; }
-.rules li { margin: .35rem 0; }
-.rules p { color: var(--txt); }
+.rules-intro { font-size: 1.05rem; margin: .2rem 0 1rem; }
+.rule-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  padding: 1rem 1.2rem; margin-bottom: 1rem; }
+.rule-head { display: flex; align-items: center; gap: .6rem; margin-bottom: .6rem; }
+.rule-head h3 { margin: 0; font-size: 1.1rem; }
+.rule-ico { font-size: 1.5rem; }
+
+.pts { display: inline-grid; place-items: center; min-width: 1.7rem; height: 1.7rem;
+  padding: 0 .4rem; border-radius: 999px; font-weight: 800; font-size: .9rem;
+  background: rgba(52,211,153,.15); color: var(--accent); border: 1px solid var(--accent); }
+.pts.big { min-width: 2.6rem; height: 2.6rem; font-size: 1.4rem; }
+.pts.zero { background: rgba(248,113,113,.12); color: var(--danger); border-color: var(--danger); }
+
+.score-grid { display: grid; gap: .6rem; }
+@media (min-width: 620px) { .score-grid { grid-template-columns: repeat(3, 1fr); } }
+.score-item { display: flex; align-items: center; gap: .7rem; background: var(--bg2);
+  border: 1px solid var(--line); border-radius: 12px; padding: .7rem .8rem; }
+
+.example-box { margin-top: .8rem; padding: .7rem .9rem; background: var(--bg2);
+  border: 1px dashed var(--line); border-radius: 12px; display: flex; flex-wrap: wrap;
+  align-items: center; gap: .5rem .9rem; }
+.example-box .ex { display: inline-flex; align-items: center; gap: .35rem;
+  background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: .2rem .5rem; }
+
+.two-col { display: grid; gap: 1rem; }
+@media (min-width: 620px) { .two-col { grid-template-columns: 1fr 1fr; } }
+.mini-card { background: var(--bg2); border: 1px solid var(--line); border-radius: 12px; padding: .7rem .9rem; }
+.mini-card p { margin: .3rem 0 0; }
+
+.rule-list { list-style: none; margin: .5rem 0 0; padding: 0; }
+.rule-list li { display: flex; align-items: center; gap: .5rem; padding: .45rem 0;
+  border-bottom: 1px solid var(--line); }
+.rule-list li:last-child { border-bottom: 0; }
 
 /* ---------- misc ---------- */
 .status { padding: .6rem .9rem; border-radius: 10px; background: var(--bg2);

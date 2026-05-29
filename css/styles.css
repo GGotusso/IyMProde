@@ -140,6 +140,20 @@ table.rank tr:nth-child(1) td.pos { color: var(--gold); }
   .standings { grid-template-columns: 1fr 1fr; }
 }
 
+/* ---------- especiales ---------- */
+.specials { display: grid; gap: 1rem; }
+.special-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: .7rem 1rem 1rem; }
+.special-card .stage-title { margin: .2rem 0 .2rem; color: var(--gold); }
+.special-inputs { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .4rem; }
+.special-inputs select, .special-inputs input { min-width: 180px; flex: 1 1 180px; }
+.group-picks { display: grid; grid-template-columns: 1fr; gap: .5rem; margin-top: .5rem; }
+@media (min-width: 680px) { .group-picks { grid-template-columns: 1fr 1fr; } }
+.group-pick-row { display: flex; align-items: center; gap: .4rem; background: var(--bg2);
+  border: 1px solid var(--line); border-radius: 10px; padding: .4rem .6rem; }
+.gp-label { font-weight: 700; min-width: 4.6rem; }
+.gp-slot { color: var(--muted); font-size: .8rem; }
+.group-pick-row select { flex: 1 1 auto; min-width: 0; }
+
 /* ---------- reglas ---------- */
 .rules { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: .4rem 1.2rem 1.2rem; }
 .rules .block-title { font-size: 1rem; }

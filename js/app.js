@@ -41,13 +41,16 @@ const STAGE_LABELS = {
 };
 const STAGE_ORDER = ["group", "R32", "R16", "QF", "SF", "TP", "FINAL"];
 
+// Todos los horarios se muestran en hora de Argentina (UTC-3), sin importar
+// la zona del dispositivo. La API entrega las fechas en UTC.
+const AR_TZ = "America/Argentina/Buenos_Aires";
 const fmtDate = (iso) =>
   new Date(iso).toLocaleString("es-AR", {
     weekday: "short", day: "2-digit", month: "short",
-    hour: "2-digit", minute: "2-digit",
-  });
+    hour: "2-digit", minute: "2-digit", timeZone: AR_TZ,
+  }) + " hs";
 const fmtDay = (iso) =>
-  new Date(iso).toLocaleString("es-AR", { day: "2-digit", month: "short" });
+  new Date(iso).toLocaleString("es-AR", { day: "2-digit", month: "short", timeZone: AR_TZ });
 
 // Eliminatorias: los pronósticos se habilitan 2 días antes del partido
 // (antes los equipos suelen estar "Por definir").
@@ -58,6 +61,27 @@ const opensAt = (m) =>
 const notYetOpen = (m) => m.stage !== "group" && Date.now() < new Date(m.kickoff) - KNOCKOUT_WINDOW_MS;
 // Un partido se puede pronosticar si no empezó y (es de grupos o ya se habilitó).
 const canPredict = (m) => !started(m) && !notYetOpen(m);
+
+// Nombres de selección en español (el valor interno sigue siendo el de la API).
+const TEAM_ES = {
+  "Algeria": "Argelia", "Argentina": "Argentina", "Australia": "Australia",
+  "Austria": "Austria", "Belgium": "Bélgica", "Bosnia-Herzegovina": "Bosnia y Herzegovina",
+  "Brazil": "Brasil", "Canada": "Canadá", "Cape Verde Islands": "Cabo Verde",
+  "Colombia": "Colombia", "Congo DR": "RD del Congo", "Croatia": "Croacia",
+  "Curaçao": "Curazao", "Czechia": "República Checa", "Ecuador": "Ecuador",
+  "Egypt": "Egipto", "England": "Inglaterra", "France": "Francia",
+  "Germany": "Alemania", "Ghana": "Ghana", "Haiti": "Haití", "Iran": "Irán",
+  "Iraq": "Irak", "Ivory Coast": "Costa de Marfil", "Japan": "Japón",
+  "Jordan": "Jordania", "Mexico": "México", "Morocco": "Marruecos",
+  "Netherlands": "Países Bajos", "New Zealand": "Nueva Zelanda", "Norway": "Noruega",
+  "Panama": "Panamá", "Paraguay": "Paraguay", "Portugal": "Portugal", "Qatar": "Catar",
+  "Saudi Arabia": "Arabia Saudita", "Scotland": "Escocia", "Senegal": "Senegal",
+  "South Africa": "Sudáfrica", "South Korea": "Corea del Sur", "Spain": "España",
+  "Sweden": "Suecia", "Switzerland": "Suiza", "Tunisia": "Túnez", "Turkey": "Turquía",
+  "United States": "Estados Unidos", "Uruguay": "Uruguay", "Uzbekistan": "Uzbekistán",
+  "Por definir": "Por definir",
+};
+const T = (name) => TEAM_ES[name] || name;
 
 // <img> del escudo (o nada si no hay).
 function crestImg(url) {
@@ -73,9 +97,9 @@ init();
 async function init() {
   bindLogin();
   bindNav();
-  bindRankingTabs();
   $("#logout-btn").addEventListener("click", logout);
   $("#save-btn").addEventListener("click", savePredictions);
+  $("#save-special-btn").addEventListener("click", saveSpecials);
 
   if (SUPABASE_URL.includes("TU-PROYECTO")) {
     $("#conn-status").textContent =
@@ -190,6 +214,7 @@ function showView(view) {
 
   if (view === "predictions") renderPredictions();
   if (view === "ranking") renderRanking();
+  if (view === "especiales") renderEspeciales();
   if (view === "mundial") renderMundial();
   if (view === "admin") renderAdmin();
 }
@@ -282,11 +307,11 @@ function matchRow(m) {
 
   row.append(
     el("div", { className: "team home" },
-      el("span", { className: "name" }, m.home_team), crestImg(m.home_crest)),
+      el("span", { className: "name" }, T(m.home_team)), crestImg(m.home_crest)),
     el("div", { className: "score-box" },
       homeInput, el("span", { className: "sep" }, "–"), awayInput),
     el("div", { className: "team away" },
-      crestImg(m.away_crest), el("span", { className: "name" }, m.away_team)),
+      crestImg(m.away_crest), el("span", { className: "name" }, T(m.away_team))),
   );
 
   const meta = el("div", { className: "match-meta" });
@@ -343,51 +368,14 @@ function updateStatus(text, kind) {
 // =====================================================================
 //  RANKING
 // =====================================================================
-let rankMode = "final";
-
-function bindRankingTabs() {
-  $$(".tab").forEach((t) =>
-    t.addEventListener("click", () => {
-      $$(".tab").forEach((x) => x.classList.remove("active"));
-      t.classList.add("active");
-      rankMode = t.dataset.rank;
-      $("#week-filter").classList.toggle("hidden", rankMode !== "weekly");
-      renderRanking();
-    }));
-  $("#week-filter").addEventListener("change", renderRanking);
-}
-
 async function renderRanking() {
   const wrap = $("#ranking-table");
   wrap.innerHTML = `<div class="spinner">Cargando…</div>`;
-
-  if (rankMode === "final") {
-    const { data, error } = await sb
-      .from("leaderboard").select("*").order("points", { ascending: false });
-    if (error) { wrap.innerHTML = `<p class="error">${error.message}</p>`; return; }
-    renderRankTable(wrap, data, ["Pos", "Jugador", "Exactos", "Puntos"],
-      (r) => [r.exact_hits, r.points], r => r.player_id);
-  } else {
-    const { data, error } = await sb.from("leaderboard_weekly").select("*");
-    if (error) { wrap.innerHTML = `<p class="error">${error.message}</p>`; return; }
-    const weeks = [...new Set((data || []).map((r) => `${r.iso_year}-${r.iso_week}`))].sort();
-    const sel = $("#week-filter");
-    if (sel.options.length !== weeks.length) {
-      sel.innerHTML = "";
-      weeks.forEach((w, i) => {
-        const [y, wk] = w.split("-");
-        sel.append(el("option", { value: w }, `Semana ${i + 1} (sem. ${wk}/${y})`));
-      });
-      if (weeks.length) sel.value = weeks[weeks.length - 1];
-    }
-    const cur = sel.value || weeks[weeks.length - 1];
-    const rows = (data || [])
-      .filter((r) => `${r.iso_year}-${r.iso_week}` === cur)
-      .sort((a, b) => b.points - a.points || b.exact_hits - a.exact_hits);
-    if (!rows.length) { wrap.innerHTML = `<p class="muted">Todavía no hay puntos en esta semana.</p>`; return; }
-    renderRankTable(wrap, rows, ["Pos", "Jugador", "Exactos", "Puntos"],
-      (r) => [r.exact_hits, r.points], r => r.player_id);
-  }
+  const { data, error } = await sb
+    .from("leaderboard").select("*").order("points", { ascending: false });
+  if (error) { wrap.innerHTML = `<p class="error">${error.message}</p>`; return; }
+  renderRankTable(wrap, data, ["Pos", "Jugador", "Exactos", "Puntos"],
+    (r) => [r.exact_hits, r.points], (r) => r.player_id);
 }
 
 function renderRankTable(wrap, rows, headers, cols, idOf) {
@@ -482,10 +470,10 @@ function renderUpcoming() {
     const row = el("div", { className: "match" });
     row.append(
       el("div", { className: "team home" },
-        el("span", { className: "name" }, m.home_team), crestImg(m.home_crest)),
+        el("span", { className: "name" }, T(m.home_team)), crestImg(m.home_crest)),
       el("div", { className: "score-box vs" }, "vs"),
       el("div", { className: "team away" },
-        crestImg(m.away_crest), el("span", { className: "name" }, m.away_team)),
+        crestImg(m.away_crest), el("span", { className: "name" }, T(m.away_team))),
     );
     const meta = el("div", { className: "match-meta" });
     meta.append(el("span", {}, fmtDate(m.kickoff)));
@@ -510,7 +498,7 @@ function renderStandings() {
     g.rows.forEach((t, i) => {
       const teamCell = el("td", {});
       const inner = el("div", { className: "team-cell" });
-      inner.append(crestImg(crests[t.team]), el("span", {}, t.team));
+      inner.append(crestImg(crests[t.team]), el("span", {}, T(t.team)));
       teamCell.append(inner);
       tbody.append(rowOf("tr",
         el("td", { className: "pos" }, String(i + 1)),
@@ -548,6 +536,152 @@ function renderScorers(scorers) {
 // helpers de tabla
 function th(label, right) { return el("th", right ? { style: "text-align:right" } : {}, label); }
 function rowOf(tag, ...cells) { const r = el(tag); cells.forEach((c) => r.append(c)); return r; }
+
+// =====================================================================
+//  ESPECIALES · campeón, finalistas, semifinalistas y goleador
+// =====================================================================
+const SPECIAL_MARKETS = [
+  { key: "champion",      title: "🏆 Campeón",              count: 1, type: "team",   help: "15 pts si acertás el campeón." },
+  { key: "finalists",     title: "🥈 Finalistas (2)",        count: 2, type: "team",   help: "6 pts por cada finalista correcto." },
+  { key: "semifinalists", title: "4️⃣ Semifinalistas (4)",    count: 4, type: "team",   help: "4 pts por cada semifinalista correcto." },
+  { key: "top_scorer",    title: "⚽ Goleador del torneo",    count: 1, type: "player", help: "10 pts si acertás el goleador (Bota de Oro)." },
+];
+let specialInputs = {};   // key -> [inputEls]
+let specialMeta = {};     // key -> {count, type, title}
+let specialsLocked = false;
+
+// Equipos de la fase de grupos (los 48), ordenados.
+function teamsList() {
+  const set = new Set();
+  for (const m of matches) if (m.stage === "group") { set.add(m.home_team); set.add(m.away_team); }
+  return [...set].filter((t) => t && t !== "Por definir").sort((a, b) => a.localeCompare(b));
+}
+function groupLetters() {
+  return [...new Set(matches.filter((m) => m.stage === "group").map((m) => m.group_name))]
+    .filter(Boolean).sort();
+}
+function groupTeams(letter) {
+  const set = new Set();
+  for (const m of matches) if (m.stage === "group" && m.group_name === letter) {
+    set.add(m.home_team); set.add(m.away_team);
+  }
+  return [...set].filter((t) => t && t !== "Por definir").sort((a, b) => a.localeCompare(b));
+}
+function teamSelect(teams, value, locked) {
+  const sel = el("select", { disabled: locked });
+  sel.append(el("option", { value: "" }, "— elegí —"));
+  for (const t of teams) sel.append(el("option", { value: t }, T(t)));
+  if (value) sel.value = value;
+  return sel;
+}
+
+async function renderEspeciales() {
+  const wrap = $("#specials-form");
+  wrap.innerHTML = `<div class="spinner">Cargando…</div>`;
+
+  const deadlineIso = matches.reduce((min, m) => (!min || m.kickoff < min ? m.kickoff : min), null);
+  specialsLocked = !!deadlineIso && new Date(deadlineIso) <= new Date();
+  $("#special-deadline").textContent = deadlineIso
+    ? (specialsLocked ? "🔒 Cerrados: el Mundial ya arrancó." : "⏰ Se cierran al inicio del Mundial: " + fmtDate(deadlineIso))
+    : "";
+  $("#save-special-btn").disabled = specialsLocked;
+
+  const { data, error } = await sb.rpc("my_specials", { p_token: session.token });
+  if (error && error.message.includes("SESION_INVALIDA")) return logout();
+  const mine = {};
+  for (const r of data || []) mine[r.market] = r.picks;
+
+  specialInputs = {}; specialMeta = {};
+  wrap.innerHTML = "";
+  const teams = teamsList();
+
+  // --- mercados fijos ---
+  for (const mk of SPECIAL_MARKETS) {
+    const card = el("div", { className: "special-card" });
+    card.append(el("div", { className: "stage-title" }, mk.title));
+    card.append(el("p", { className: "muted small" }, mk.help));
+    const box = el("div", { className: "special-inputs" });
+    const picks = mine[mk.key] || [];
+    specialInputs[mk.key] = [];
+    specialMeta[mk.key] = { count: mk.count, type: mk.type, title: mk.title };
+    for (let i = 0; i < mk.count; i++) {
+      const input = mk.type === "team"
+        ? teamSelect(teams, picks[i], specialsLocked)
+        : el("input", { type: "text", placeholder: "Nombre del jugador (ej. Lionel Messi)",
+                        disabled: specialsLocked, value: picks[i] || "" });
+      specialInputs[mk.key].push(input);
+      box.append(input);
+    }
+    card.append(box);
+    wrap.append(card);
+  }
+
+  // --- 1º y 2º de cada grupo ---
+  const groups = groupLetters();
+  if (groups.length) {
+    const card = el("div", { className: "special-card" });
+    card.append(el("div", { className: "stage-title" }, "🥇 1º y 2º de cada grupo"));
+    card.append(el("p", { className: "muted small" }, "3 pts por acertar el 1º y 2 pts por el 2º, en cada grupo."));
+    const grid = el("div", { className: "group-picks" });
+    for (const g of groups) {
+      const key = "group_" + g;
+      const gt = groupTeams(g);
+      const picks = mine[key] || [];
+      specialInputs[key] = [];
+      specialMeta[key] = { count: 2, type: "team", title: "Grupo " + g };
+      const s1 = teamSelect(gt, picks[0], specialsLocked);
+      const s2 = teamSelect(gt, picks[1], specialsLocked);
+      specialInputs[key].push(s1, s2);
+      const row = el("div", { className: "group-pick-row" });
+      row.append(
+        el("span", { className: "gp-label" }, "Grupo " + g),
+        el("span", { className: "gp-slot" }, "1º"), s1,
+        el("span", { className: "gp-slot" }, "2º"), s2,
+      );
+      grid.append(row);
+    }
+    card.append(grid);
+    wrap.append(card);
+  }
+}
+
+async function saveSpecials() {
+  if (specialsLocked) { specialStatus("🔒 Los especiales ya están cerrados.", "err"); return; }
+  specialStatus("Guardando…");
+  let saved = 0;
+  for (const key of Object.keys(specialInputs)) {
+    const meta = specialMeta[key];
+    const vals = specialInputs[key].map((i) => i.value.trim()).filter(Boolean);
+    if (vals.length === 0) continue;                 // mercado vacío, se saltea
+    if (vals.length !== meta.count) {
+      specialStatus(`Completá los ${meta.count} de "${meta.title}" (o dejalos vacíos).`, "err");
+      return;
+    }
+    if (meta.type === "team" && new Set(vals).size !== vals.length) {
+      specialStatus(`No repitas equipos en "${meta.title}".`, "err");
+      return;
+    }
+    const { error } = await sb.rpc("save_special", {
+      p_token: session.token, p_market: key, p_picks: vals,
+    });
+    if (error) {
+      if (error.message.includes("SESION_INVALIDA")) return logout();
+      if (error.message.includes("ESPECIALES_CERRADOS")) { specialsLocked = true; specialStatus("🔒 Se cerraron los especiales.", "err"); return; }
+      specialStatus("Error: " + error.message, "err");
+      return;
+    }
+    saved++;
+  }
+  specialStatus(saved ? `✅ Guardado (${saved} pronóstico${saved > 1 ? "s" : ""}).` : "No completaste ninguno todavía.", saved ? "ok" : "err");
+}
+
+function specialStatus(text, kind) {
+  const s = $("#special-status");
+  if (!text) { s.classList.add("hidden"); return; }
+  s.textContent = text;
+  s.className = "status" + (kind ? " " + kind : "");
+  s.classList.remove("hidden");
+}
 
 // =====================================================================
 //  ADMIN · cargar resultados y resolver equipos

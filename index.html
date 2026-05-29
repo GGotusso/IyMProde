@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Prode Mundial 2026 ⚽</title>
-  <link rel="stylesheet" href="./css/styles.css?v=3" />
+  <link rel="stylesheet" href="./css/styles.css?v=4" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%BD%3C/text%3E%3C/svg%3E" />
 </head>
 <body>
@@ -13,6 +13,7 @@
     <nav id="nav">
       <button data-view="predictions" class="nav-btn active">Mis pronósticos</button>
       <button data-view="ranking" class="nav-btn">Ranking</button>
+      <button data-view="especiales" class="nav-btn">Especiales</button>
       <button data-view="mundial" class="nav-btn">Mundial</button>
       <button data-view="reglas" class="nav-btn">Reglas</button>
       <button data-view="admin" class="nav-btn hidden" id="nav-admin">Admin</button>
@@ -62,18 +63,20 @@
 
     <!-- =================== RANKING =================== -->
     <section id="view-ranking" class="view hidden">
-      <div class="view-head">
-        <h2>Ranking</h2>
-        <div class="actions">
-          <div class="tabs">
-            <button class="tab active" data-rank="final">Final</button>
-            <button class="tab" data-rank="weekly">Semanal</button>
-          </div>
-          <select id="week-filter" class="hidden"></select>
-        </div>
-      </div>
+      <div class="view-head"><h2>🏆 Ranking general</h2></div>
       <div id="ranking-table"></div>
-      <p class="muted small">Puntaje: <b>3</b> por marcador exacto · <b>1</b> por acertar el resultado (ganador/empate) · <b>0</b> si errás.</p>
+      <p class="muted small">Puntaje: <b>3</b> por marcador exacto · <b>1</b> por acertar el resultado · <b>0</b> si errás · más los puntos de los pronósticos especiales.</p>
+    </section>
+
+    <!-- ================= ESPECIALES ================= -->
+    <section id="view-especiales" class="view hidden">
+      <div class="view-head">
+        <h2>⭐ Pronósticos especiales</h2>
+        <button id="save-special-btn" class="primary">Guardar</button>
+      </div>
+      <p class="muted" id="special-deadline"></p>
+      <p id="special-status" class="status hidden"></p>
+      <div id="specials-form" class="specials"></div>
     </section>
 
     <!-- =================== MUNDIAL =================== -->
@@ -112,10 +115,20 @@
         </ul>
         <p class="muted small">Cada partido carga su propia fecha/hora; el cierre es individual, no por jornada.</p>
 
-        <h3 class="block-title">🏆 Rankings</h3>
+        <h3 class="block-title">⭐ Pronósticos especiales</h3>
+        <p class="muted small">Se cargan en la pestaña <b>Especiales</b> y se cierran al <b>inicio del Mundial</b>. Suman al ranking general:</p>
         <ul>
-          <li><b>Final:</b> suma de todos tus puntos del torneo. Desempata quien tenga más <b>marcadores exactos</b>.</li>
-          <li><b>Semanal:</b> los puntos de los partidos de esa semana, para una competencia paralela.</li>
+          <li><b>Campeón:</b> 15 pts.</li>
+          <li><b>Finalistas (2):</b> 6 pts por cada uno correcto.</li>
+          <li><b>Semifinalistas (4):</b> 4 pts por cada uno correcto.</li>
+          <li><b>1º y 2º de cada grupo:</b> 3 pts por el 1º y 2 pts por el 2º, en cada grupo.</li>
+          <li><b>Goleador del torneo:</b> 10 pts.</li>
+        </ul>
+
+        <h3 class="block-title">🏆 Ranking</h3>
+        <ul>
+          <li>Suma de <b>todos</b> tus puntos (partidos + especiales). Se ordena de mayor a menor y ves a todos los jugadores.</li>
+          <li>Desempata quien tenga más <b>marcadores exactos</b>.</li>
         </ul>
 
         <h3 class="block-title">🔄 Resultados</h3>
@@ -139,6 +152,6 @@
 
   <footer><span id="conn-status"></span></footer>
 
-  <script type="module" src="./js/app.js?v=3"></script>
+  <script type="module" src="./js/app.js?v=4"></script>
 </body>
 </html>

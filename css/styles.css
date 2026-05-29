@@ -116,13 +116,20 @@ input:focus, select:focus { outline: 2px solid var(--accent2); border-color: tra
 .tab { background: transparent; border: 0; color: var(--muted); padding: .4rem .9rem;
   border-radius: 8px; cursor: pointer; }
 .tab.active { background: var(--card); color: var(--txt); }
-table.rank { width: 100%; border-collapse: collapse; margin-top: .5rem; }
-table.rank th, table.rank td { padding: .65rem .8rem; text-align: left; border-bottom: 1px solid var(--line); }
-table.rank th { color: var(--muted); font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; }
-table.rank td.pts { font-weight: 800; text-align: right; color: var(--accent); }
-table.rank td.pos { width: 2.5rem; color: var(--muted); font-weight: 700; }
-table.rank tr.me { background: rgba(52,211,153,.08); }
-table.rank tr:nth-child(1) td.pos { color: var(--gold); }
+.rank-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  overflow: hidden; box-shadow: var(--shadow); }
+table.rank { width: 100%; border-collapse: collapse; }
+table.rank th, table.rank td { padding: .7rem .9rem; text-align: left; border-bottom: 1px solid var(--line); }
+table.rank tbody tr:last-child td { border-bottom: 0; }
+table.rank th { color: var(--muted); font-weight: 600; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; background: var(--bg2); }
+table.rank td.pts { font-weight: 800; text-align: right; color: var(--accent); font-size: 1.05rem; }
+table.rank td.pos { width: 2.8rem; text-align: center; color: var(--muted); font-weight: 700; font-size: 1.05rem; }
+table.rank td.rk-name { font-weight: 600; }
+table.rank .you { margin-left: .45rem; font-size: .65rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .04em; color: var(--accent); background: rgba(52,211,153,.14);
+  border: 1px solid var(--accent); border-radius: 999px; padding: .05rem .4rem; vertical-align: middle; }
+table.rank tbody tr.me { background: rgba(52,211,153,.08); }
+table.rank tbody tr:hover { background: rgba(255,255,255,.03); }
 
 /* ---------- escudos ---------- */
 .crest { width: 22px; height: 22px; object-fit: contain; flex: 0 0 auto; }
@@ -162,11 +169,11 @@ table.rank tr:nth-child(1) td.pos { color: var(--gold); }
 .rule-head h3 { margin: 0; font-size: 1.1rem; }
 .rule-ico { font-size: 1.5rem; }
 
-.pts { display: inline-grid; place-items: center; min-width: 1.7rem; height: 1.7rem;
+.pts-chip { display: inline-grid; place-items: center; min-width: 1.7rem; height: 1.7rem;
   padding: 0 .4rem; border-radius: 999px; font-weight: 800; font-size: .9rem;
   background: rgba(52,211,153,.15); color: var(--accent); border: 1px solid var(--accent); }
-.pts.big { min-width: 2.6rem; height: 2.6rem; font-size: 1.4rem; }
-.pts.zero { background: rgba(248,113,113,.12); color: var(--danger); border-color: var(--danger); }
+.pts-chip.big { min-width: 2.6rem; height: 2.6rem; font-size: 1.4rem; }
+.pts-chip.zero { background: rgba(248,113,113,.12); color: var(--danger); border-color: var(--danger); }
 
 .score-grid { display: grid; gap: .6rem; }
 @media (min-width: 620px) { .score-grid { grid-template-columns: repeat(3, 1fr); } }

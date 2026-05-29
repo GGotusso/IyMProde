@@ -378,8 +378,10 @@ async function renderRanking() {
     (r) => [r.exact_hits, r.points], (r) => r.player_id);
 }
 
+const MEDALS = ["🥇", "🥈", "🥉"];
+
 function renderRankTable(wrap, rows, headers, cols, idOf) {
-  if (!rows?.length) { wrap.innerHTML = `<p class="muted">Sin datos todavía.</p>`; return; }
+  if (!rows?.length) { wrap.innerHTML = `<p class="muted">Sin datos todavía. ¡Cargá tus pronósticos!</p>`; return; }
   const table = el("table", { className: "rank" });
   const thead = el("tr");
   headers.forEach((h, i) =>
@@ -388,8 +390,10 @@ function renderRankTable(wrap, rows, headers, cols, idOf) {
   const tbody = el("tbody");
   rows.forEach((r, i) => {
     const tr = el("tr", idOf(r) === session.player_id ? { className: "me" } : {});
-    tr.append(el("td", { className: "pos" }, String(i + 1)));
-    tr.append(el("td", {}, r.player_name));
+    tr.append(el("td", { className: "pos" }, i < 3 ? MEDALS[i] : String(i + 1)));
+    const nameTd = el("td", { className: "rk-name" }, r.player_name);
+    if (idOf(r) === session.player_id) nameTd.append(el("span", { className: "you" }, "vos"));
+    tr.append(nameTd);
     const [exact, pts] = cols(r);
     tr.append(el("td", { style: "text-align:right" }, String(exact)));
     tr.append(el("td", { className: "pts" }, String(pts)));
@@ -397,7 +401,7 @@ function renderRankTable(wrap, rows, headers, cols, idOf) {
   });
   table.append(tbody);
   wrap.innerHTML = "";
-  wrap.append(table);
+  wrap.append(el("div", { className: "rank-card" }, table));
 }
 
 // =====================================================================

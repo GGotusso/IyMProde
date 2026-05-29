@@ -7,5 +7,5 @@
 //  está protegido por RLS + funciones RPC en la base de datos.
 // =====================================================================
 
-export const SUPABASE_URL = "https://TU-PROYECTO.supabase.co";
-export const SUPABASE_ANON_KEY = "TU_ANON_KEY_PUBLICA";
+export const SUPABASE_URL = "https://kulgswglwgbkhqydjygn.supabase.co";
+export const SUPABASE_ANON_KEY = "sb_publishable_FRUrjTIJFUeCks7srJjMzw_0KOLD4wS";

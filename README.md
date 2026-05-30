@@ -56,27 +56,39 @@ Tiene **ranking final** (acumulado) y **ranking semanal**.
    - Verificá que tu plan incluya el **Mundial (World Cup)**. Si no, mirá
      "Alternativas de API" más abajo.
 2. En el repo: **Settings → Secrets and variables → Actions → New repository secret**.
-   Creá estos 3 secrets:
+   Creá estos secrets:
    | Nombre | Valor |
    |---|---|
    | `SUPABASE_URL` | la Project URL de Supabase |
    | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API → **service_role** (secreta) |
    | `FOOTBALL_DATA_TOKEN` | tu token de football-data.org |
+   | `ODDS_API_KEY` | *(opcional)* tu API key de [the-odds-api.com](https://the-odds-api.com) para las **cuotas 1X2** |
 3. El workflow `.github/workflows/sync-results.yml` corre **cada hora** y también
    podés dispararlo a mano: pestaña **Actions → "Sincronizar resultados del
    Mundial" → Run workflow**.
 4. Cada corrida:
    - reemplaza el fixture *placeholder* por el **fixture real** (equipos, fechas,
      llaves de eliminatoria) y carga los **marcadores**;
-   - guarda **posiciones por grupo**, **goleadores** y **cuotas (odds)** en la
-     tabla `meta_cache`, que alimentan la pestaña **Mundial** de la web.
+   - guarda **posiciones por grupo** y **goleadores** en la tabla `meta_cache`;
+   - si está `ODDS_API_KEY`, carga las **cuotas 1X2** (promedio de varias casas) y
+     la **mejor casa por resultado** en la tabla `matches`.
 
-> Las cuotas y los goleadores dependen de lo que incluya tu plan de la API; si no
-> vienen, el resto funciona igual y esos bloques quedan vacíos.
->
-> **Cuotas (odds):** football-data.org las entrega aparte. Activá el
-> *Odds-Package* en tu panel (User-Panel) y, cuando empiece a devolver números,
-> aparecen automáticamente en la pestaña **Mundial** sin tocar código.
+> Los goleadores dependen de lo que incluya tu plan de football-data.org; si no
+> vienen, el resto funciona igual y ese bloque queda vacío.
+
+### Cuotas (odds) — The Odds API
+Las cuotas vienen de [the-odds-api.com](https://the-odds-api.com) (plan gratis:
+**500 requests/mes**), que agrega las cuotas de ~20 casas para la key
+`soccer_fifa_world_cup`. Registrate, copiá tu API key al secret `ODDS_API_KEY` y
+listo. El sync:
+- muestra la **cuota promedio** 1 / X / 2 de cada próximo partido;
+- en el tooltip y debajo, la **casa que más paga** para cada resultado;
+- **antes** de usarlas, corré una vez la migración `supabase/migracion-cuotas.sql`.
+
+Para quedar lo más "live" posible sin agotar la cuota gratis, el sync pide las
+cuotas con **cadencia adaptativa**: cada hora si hay un partido en ≤3 h, cada 3 h
+si hay uno en ≤24 h, cada 12 h si hay uno en ≤72 h, y **nada** si no hay partidos
+próximos (en días pico del Mundial son ~12-15 llamadas/día, muy por debajo de 500).
 
 > **Importante:** corré la sincronización **antes** de que tus amigos empiecen a
 > cargar pronósticos, así los partidos quedan con su ID definitivo.

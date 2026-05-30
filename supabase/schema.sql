@@ -52,9 +52,10 @@ create table if not exists public.matches (
   away_goals  int,
   sort_order  int not null default 0,
   source      text not null default 'seed',     -- 'seed' (placeholder) | 'api' (sync automático)
-  odds_home   numeric,                           -- cuota victoria local (1)
-  odds_draw   numeric,                           -- cuota empate (X)
-  odds_away   numeric,                            -- cuota victoria visitante (2)
+  odds_home   numeric,                           -- cuota victoria local (1), promedio de casas
+  odds_draw   numeric,                           -- cuota empate (X), promedio de casas
+  odds_away   numeric,                            -- cuota victoria visitante (2), promedio de casas
+  odds_best   jsonb,                              -- mejor casa por resultado: {"home":{"book":"Bet365","price":1.55}, "draw":{...}, "away":{...}}
   home_crest  text,                               -- URL del escudo local
   away_crest  text                                -- URL del escudo visitante
 );
@@ -64,6 +65,7 @@ alter table public.matches add column if not exists source     text not null def
 alter table public.matches add column if not exists odds_home  numeric;
 alter table public.matches add column if not exists odds_draw  numeric;
 alter table public.matches add column if not exists odds_away  numeric;
+alter table public.matches add column if not exists odds_best  jsonb;
 alter table public.matches add column if not exists home_crest text;
 alter table public.matches add column if not exists away_crest text;
 

@@ -481,7 +481,31 @@ function renderUpcoming() {
     );
     const meta = el("div", { className: "match-meta" });
     meta.append(el("span", {}, fmtDate(m.kickoff)));
+    const best = m.odds_best || null;
+    if (m.odds_home != null || m.odds_draw != null || m.odds_away != null) {
+      const o = (v) => (v != null ? Number(v).toFixed(2) : "–");
+      // Cada chip muestra la cuota PROMEDIO; el tooltip dice qué casa paga más.
+      const chip = (lab, avg, b, fallbackTitle) => el("span", {
+        className: "odd",
+        title: b ? `Mejor casa: ${b.book} paga ${Number(b.price).toFixed(2)}` : fallbackTitle,
+      }, lab + " ", el("b", {}, o(avg)));
+      meta.append(el("span", { className: "odds" },
+        chip("1", m.odds_home, best && best.home, T(m.home_team)),
+        chip("X", m.odds_draw, best && best.draw, "Empate"),
+        chip("2", m.odds_away, best && best.away, T(m.away_team)),
+      ));
+    }
     row.append(meta);
+    // Línea con la mejor casa de apuestas por resultado (la que más paga).
+    if (best && (best.home || best.draw || best.away)) {
+      const p = (v) => Number(v).toFixed(2);
+      const seg = (lab, b) => b
+        ? el("span", { className: "best-seg" }, lab + ": ", el("b", {}, b.book), " ", el("span", { className: "bp" }, p(b.price)))
+        : null;
+      const line = el("div", { className: "best-odds" }, el("span", { className: "best-label" }, "💰 Mejor casa "));
+      for (const s of [seg("1", best.home), seg("X", best.draw), seg("2", best.away)]) if (s) line.append(s);
+      row.append(line);
+    }
     wrap.append(row);
   }
 }

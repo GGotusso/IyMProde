@@ -130,6 +130,7 @@ const TEAM_ALIAS = {
   "czech republic": "czechia",
   "bosnia and herzegovina": "bosnia herzegovina",
   "cape verde": "cabo verde",
+  "cape verde islands": "cabo verde",
   "turkiye": "turkey",
   "congo dr": "dr congo",
   "korea dpr": "north korea",

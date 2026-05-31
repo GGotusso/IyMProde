@@ -126,6 +126,7 @@ async function init() {
   bindLogin();
   bindNav();
   bindRankTabs();
+  bindAdminTabs();
   $("#logout-btn").addEventListener("click", logout);
   $("#save-btn").addEventListener("click", savePredictions);
   $("#save-bar-btn").addEventListener("click", savePredictions);
@@ -1083,11 +1084,118 @@ function specialStatus(text, kind) {
 // =====================================================================
 //  ADMIN · cargar resultados y resolver equipos
 // =====================================================================
+function bindAdminTabs() {
+  $$("#admin-tabs .tab").forEach((b) =>
+    b.addEventListener("click", () => {
+      const t = b.dataset.atab;
+      $$("#admin-tabs .tab").forEach((x) => x.classList.toggle("active", x === b));
+      $("#admin-players").classList.toggle("hidden", t !== "players");
+      $("#admin-matches").classList.toggle("hidden", t !== "matches");
+    }));
+}
+
 function renderAdmin() {
   if (!session.is_admin) { showView("predictions"); return; }
+  renderAdminPlayers();
   const wrap = $("#admin-list");
   wrap.innerHTML = "";
   renderMatchSections(wrap, matches, adminRow);
+}
+
+function adminErr(msg = "") {
+  if (msg.includes("NO_ADMIN")) return "No tenés permisos de admin.";
+  if (msg.includes("NO_TE_PODES_BORRAR")) return "No te podés borrar a vos mismo.";
+  if (msg.includes("ULTIMO_ADMIN")) return "No podés sacarle el admin al último admin del grupo.";
+  if (msg.includes("PIN_CORTO")) return "El PIN debe tener al menos 4 caracteres.";
+  if (msg.includes("NOMBRE_CORTO")) return "El nombre es muy corto.";
+  if (msg.includes("NOMBRE_EXISTE")) return "Ya existe un jugador con ese nombre.";
+  if (msg.includes("SESION_INVALIDA")) return "Tu sesión expiró, volvé a entrar.";
+  return "Error: " + msg;
+}
+
+// Lista de jugadores con acciones de gestión (solo admin).
+async function renderAdminPlayers() {
+  const wrap = $("#admin-players");
+  wrap.innerHTML = `<div class="spinner">Cargando…</div>`;
+  const { data, error } = await sb.rpc("admin_list_players", { p_token: session.token });
+  if (error) {
+    if (error.message.includes("SESION_INVALIDA")) return logout();
+    wrap.innerHTML = `<p class="error">${adminErr(error.message)}</p>`;
+    return;
+  }
+  wrap.innerHTML = "";
+  wrap.append(el("p", { className: "muted small" },
+    "Borrar un jugador elimina también sus pronósticos y especiales. No se puede deshacer."));
+  const list = el("div", { className: "admin-players-list" });
+  for (const p of data || []) list.append(adminPlayerCard(p));
+  wrap.append(list);
+}
+
+function adminPlayerCard(p) {
+  const isMe = p.id === session.player_id;
+  const card = el("div", { className: "admin-player" });
+
+  const nameLine = el("div", { className: "ap-name" }, p.name);
+  if (p.is_admin) nameLine.append(el("span", { className: "ap-badge admin" }, "ADMIN"));
+  if (isMe) nameLine.append(el("span", { className: "ap-badge you" }, "vos"));
+  card.append(el("div", { className: "ap-info" },
+    nameLine,
+    el("div", { className: "ap-meta muted small" },
+      `${p.points} pts · ${p.preds} pronóstico${p.preds === 1 ? "" : "s"} · desde ${fmtDay(p.created_at)}`)));
+
+  const acts = el("div", { className: "ap-acts" });
+
+  const admBtn = el("button", { className: "ghost" }, p.is_admin ? "Sacar admin" : "Hacer admin");
+  admBtn.addEventListener("click", () => adminAction(admBtn, "admin_set_admin",
+    { p_token: session.token, p_player_id: p.id, p_value: !p.is_admin },
+    `${p.is_admin ? "Le sacaste" : "Le diste"} admin a ${p.name}.`));
+
+  const pinBtn = el("button", { className: "ghost" }, "Reset PIN");
+  pinBtn.addEventListener("click", () => {
+    const np = prompt(`Nuevo PIN para ${p.name} (mín. 4 dígitos):`);
+    if (np == null) return;
+    adminAction(pinBtn, "admin_reset_pin",
+      { p_token: session.token, p_player_id: p.id, p_new_pin: np.trim() },
+      `PIN de ${p.name} actualizado.`, false);
+  });
+
+  const renBtn = el("button", { className: "ghost" }, "Renombrar");
+  renBtn.addEventListener("click", () => {
+    const nn = prompt(`Nuevo nombre para ${p.name}:`, p.name);
+    if (nn == null) return;
+    adminAction(renBtn, "admin_rename_player",
+      { p_token: session.token, p_player_id: p.id, p_new_name: nn.trim() },
+      `Renombrado a ${nn.trim()}.`);
+  });
+
+  const delBtn = el("button", { className: "ghost danger" }, "Borrar");
+  delBtn.disabled = isMe;
+  if (isMe) delBtn.title = "No te podés borrar a vos mismo";
+  delBtn.addEventListener("click", () => {
+    if (!confirm(`¿Borrar a ${p.name}? Se eliminan sus pronósticos y especiales. No se puede deshacer.`)) return;
+    adminAction(delBtn, "admin_delete_player",
+      { p_token: session.token, p_player_id: p.id }, `${p.name} eliminado.`);
+  });
+
+  acts.append(admBtn, pinBtn, renBtn, delBtn);
+  card.append(acts);
+  return card;
+}
+
+// Ejecuta una RPC de admin, muestra toast y recarga la lista (salvo reload=false).
+async function adminAction(btn, rpc, args, okMsg, reload = true) {
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = "…";
+  const { error } = await sb.rpc(rpc, args);
+  if (error) {
+    if (error.message.includes("SESION_INVALIDA")) return logout();
+    toast(adminErr(error.message), "err");
+    btn.disabled = false; btn.textContent = old;
+    return;
+  }
+  toast("✅ " + okMsg, "ok");
+  if (reload) await renderAdminPlayers();
+  else { btn.disabled = false; btn.textContent = old; }
 }
 
 function adminRow(m) {

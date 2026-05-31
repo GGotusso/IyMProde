@@ -445,3 +445,29 @@ table.rank tbody tr.me { box-shadow: inset 3px 0 0 var(--accent); }
 .h2h-pick { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; }
 .h2h-pts { font-size: .78rem; font-weight: 700; color: var(--muted); }
 .h2h-cell.win .h2h-pts { color: var(--accent); }
+
+/* =====================================================================
+   ADMIN · gestión de jugadores
+   ===================================================================== */
+#admin-tabs { margin-bottom: .9rem; }
+.admin-players-list { display: grid; gap: .6rem; margin-top: .6rem; }
+.admin-player {
+  display: flex; align-items: center; justify-content: space-between; gap: .8rem;
+  flex-wrap: wrap; background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; padding: .7rem .9rem;
+}
+.ap-name { font-weight: 700; display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; }
+.ap-badge { font-size: .6rem; font-weight: 800; letter-spacing: .04em;
+  padding: .1rem .42rem; border-radius: 999px; text-transform: uppercase; }
+.ap-badge.admin { color: var(--gold); border: 1px solid var(--gold); background: rgba(251,191,36,.12); }
+.ap-badge.you { color: var(--accent); border: 1px solid var(--accent); background: rgba(52,211,153,.14); }
+.ap-meta { margin-top: .2rem; }
+.ap-acts { display: flex; gap: .4rem; flex-wrap: wrap; }
+.ap-acts .ghost { padding: .35rem .65rem; font-size: .78rem; }
+.ghost.danger { color: var(--danger); border-color: rgba(248,113,113,.45); }
+.ghost.danger:hover { background: rgba(248,113,113,.12); color: var(--danger); }
+.ghost:disabled { opacity: .4; cursor: not-allowed; }
+@media (max-width: 560px) {
+  .admin-player { flex-direction: column; align-items: stretch; }
+  .ap-acts { justify-content: flex-end; }
+}

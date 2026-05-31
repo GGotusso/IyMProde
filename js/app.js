@@ -35,6 +35,34 @@ const el = (tag, props = {}, ...kids) => {
   return n;
 };
 
+// Notificación flotante (no se va con el scroll). kind: "ok" | "err" | undefined.
+function toast(text, kind) {
+  const box = $("#toasts");
+  if (!box) return;
+  const t = el("div", { className: "toast" + (kind ? " " + kind : "") }, text);
+  box.append(t);
+  setTimeout(() => {
+    t.style.transition = "opacity .3s";
+    t.style.opacity = "0";
+    setTimeout(() => t.remove(), 320);
+  }, kind === "err" ? 4500 : 2800);
+}
+
+// Muestra/oculta la barra flotante de guardado según los cambios pendientes.
+function refreshSaveBar() {
+  const bar = $("#save-bar");
+  if (!bar) return;
+  const onPredictions = !$("#view-predictions").classList.contains("hidden");
+  const n = dirty.size;
+  if (onPredictions && n > 0) {
+    $("#save-bar-info").textContent =
+      `${n} cambio${n === 1 ? "" : "s"} sin guardar`;
+    bar.classList.remove("hidden");
+  } else {
+    bar.classList.add("hidden");
+  }
+}
+
 const STAGE_LABELS = {
   group: "Fase de grupos", R32: "Dieciseisavos", R16: "Octavos",
   QF: "Cuartos", SF: "Semifinales", TP: "Tercer puesto", FINAL: "Final",
@@ -97,9 +125,17 @@ init();
 async function init() {
   bindLogin();
   bindNav();
+  bindRankTabs();
   $("#logout-btn").addEventListener("click", logout);
   $("#save-btn").addEventListener("click", savePredictions);
+  $("#save-bar-btn").addEventListener("click", savePredictions);
   $("#save-special-btn").addEventListener("click", saveSpecials);
+  $("#pending-only").addEventListener("change", renderPredictions);
+
+  // Aviso al cerrar/recargar la pestaña con cambios sin guardar.
+  window.addEventListener("beforeunload", (e) => {
+    if (dirty.size > 0) { e.preventDefault(); e.returnValue = ""; }
+  });
 
   if (SUPABASE_URL.includes("TU-PROYECTO")) {
     $("#conn-status").textContent =
@@ -117,6 +153,7 @@ async function init() {
 //  LOGIN
 // =====================================================================
 function showLogin() {
+  document.body.classList.remove("in-app");
   $("#topbar").classList.add("hidden");
   $$(".view").forEach((v) => v.classList.add("hidden"));
   $("#view-login").classList.remove("hidden");
@@ -167,13 +204,33 @@ function logout() {
 //  ENTRAR A LA APP
 // =====================================================================
 async function enterApp() {
+  document.body.classList.add("in-app");
   $("#topbar").classList.remove("hidden");
   $("#user-name").textContent = "👋 " + session.name;
   $("#nav-admin").classList.toggle("hidden", !session.is_admin);
 
   await loadMatches();
   await loadMyPredictions();
+  updatePendingBadge();
   showView("predictions");
+}
+
+// Cuenta partidos próximos (cierran dentro de 7 días) que todavía no pronosticaste,
+// y lo muestra como globo rojo en el nav de "Mis pronósticos".
+const PENDING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+function updatePendingBadge() {
+  const now = Date.now();
+  const n = matches.filter((m) =>
+    canPredict(m) && !myPreds.has(m.id) &&
+    new Date(m.kickoff) - now <= PENDING_WINDOW_MS).length;
+  const b = $("#pending-badge");
+  if (n > 0) {
+    b.textContent = String(n);
+    b.title = `${n} partido${n === 1 ? "" : "s"} próximo${n === 1 ? "" : "s"} sin pronosticar`;
+    b.classList.remove("hidden");
+  } else {
+    b.classList.add("hidden");
+  }
 }
 
 async function loadMatches() {
@@ -207,10 +264,19 @@ function bindNav() {
 }
 
 function showView(view) {
+  // Si salimos de "Mis pronósticos" con cambios sin guardar, avisamos.
+  const leavingPreds = !$("#view-predictions").classList.contains("hidden");
+  if (leavingPreds && view !== "predictions" && dirty.size > 0) {
+    if (!confirm(`Tenés ${dirty.size} pronóstico${dirty.size === 1 ? "" : "s"} sin guardar.\n¿Salir igual y descartarlos?`)) return;
+    dirty.clear();
+    refreshSaveBar();
+  }
+
   $$(".view").forEach((v) => v.classList.add("hidden"));
   $("#view-" + view).classList.remove("hidden");
   $$(".nav-btn").forEach((b) =>
     b.classList.toggle("active", b.dataset.view === view));
+  if (view !== "predictions") $("#save-bar").classList.add("hidden");
 
   if (view === "predictions") renderPredictions();
   if (view === "ranking") renderRanking();
@@ -274,11 +340,22 @@ function renderPredictions() {
   } else if (filter !== "all") {
     list = matches.filter((m) => m.stage === filter);
   }
+  if ($("#pending-only").checked) {
+    list = list.filter((m) => canPredict(m) && !myPreds.has(m.id));
+  }
   const wrap = $("#matches-list");
   wrap.innerHTML = "";
   dirty.clear();
   renderMatchSections(wrap, list, matchRow);
+  if (!wrap.children.length) {
+    wrap.innerHTML = `<p class="muted empty-state">${
+      $("#pending-only").checked
+        ? "¡No te queda ningún partido próximo sin cargar! 🎉"
+        : "No hay partidos para mostrar todavía."
+    }</p>`;
+  }
   updateStatus("");
+  refreshSaveBar();
 }
 
 function matchRow(m) {
@@ -286,7 +363,9 @@ function matchRow(m) {
   const pred = myPreds.get(m.id);
   const played = m.home_goals != null && m.away_goals != null;
 
-  const row = el("div", { className: "match" + (editable ? "" : " locked") });
+  // Estado visual del pronóstico (solo para partidos próximos editables).
+  const liveState = editable && !played ? (pred ? " done" : " pending") : "";
+  const row = el("div", { className: "match" + (editable ? "" : " locked") + liveState });
 
   const homeInput = el("input", {
     type: "number", min: 0, max: 99, inputmode: "numeric",
@@ -296,11 +375,31 @@ function matchRow(m) {
     type: "number", min: 0, max: 99, inputmode: "numeric",
     value: pred ? pred.away : "", disabled: !editable,
   });
+  // Chip de estado que se actualiza mientras el usuario escribe.
+  const stateChip = el("span", { className: "pred-state" });
+  const paintState = () => {
+    if (played || !editable) return;
+    if (dirty.has(m.id)) {
+      row.className = "match done";
+      stateChip.className = "pred-state unsaved";
+      stateChip.textContent = "● Sin guardar";
+    } else if (pred) {
+      row.className = "match done";
+      stateChip.className = "pred-state ok";
+      stateChip.textContent = "✓ Cargado";
+    } else {
+      row.className = "match pending";
+      stateChip.className = "pred-state todo";
+      stateChip.textContent = "✏️ Falta cargar";
+    }
+  };
   const onChange = () => {
     const h = homeInput.value === "" ? null : +homeInput.value;
     const a = awayInput.value === "" ? null : +awayInput.value;
     if (h != null && a != null) dirty.set(m.id, { home: h, away: a });
     else dirty.delete(m.id);
+    paintState();
+    refreshSaveBar();
   };
   homeInput.addEventListener("input", onChange);
   awayInput.addEventListener("input", onChange);
@@ -325,10 +424,60 @@ function matchRow(m) {
     right.append(el("span", { className: "badge lock" }, "🔒 Cerrado"));
   } else if (notYetOpen(m)) {
     right.append(el("span", { className: "badge lock" }, "🔒 Se habilita " + fmtDay(opensAt(m))));
+  } else {
+    right.append(stateChip);
+    paintState();
   }
   meta.append(right);
   row.append(meta);
+
+  // Una vez que el partido empezó, se puede ver qué pronosticó cada uno.
+  if (started(m)) attachOthers(row, m);
   return row;
+}
+
+// Botón "Ver pronósticos de todos" + panel que se llena al abrirlo (lazy).
+function attachOthers(row, m) {
+  const toggle = el("button", { className: "others-toggle" }, "👥 Ver pronósticos de todos");
+  const panel = el("div", { className: "others-panel hidden" });
+  let loaded = false;
+  toggle.addEventListener("click", async () => {
+    const willShow = panel.classList.contains("hidden");
+    panel.classList.toggle("hidden");
+    toggle.textContent = willShow ? "👥 Ocultar pronósticos" : "👥 Ver pronósticos de todos";
+    if (willShow && !loaded) {
+      loaded = true;
+      panel.innerHTML = `<div class="spinner small">Cargando…</div>`;
+      const { data, error } = await sb.rpc("match_predictions", { p_match_id: m.id });
+      if (error) {
+        panel.innerHTML = "";
+        panel.append(el("p", { className: "error small" }, error.message));
+        loaded = false;
+        return;
+      }
+      renderOthers(panel, data);
+    }
+  });
+  row.append(el("div", { className: "others" }, toggle, panel));
+}
+
+function renderOthers(panel, rows) {
+  panel.innerHTML = "";
+  if (!rows?.length) {
+    panel.append(el("p", { className: "muted small" }, "Nadie pronosticó este partido."));
+    return;
+  }
+  const tbody = el("tbody");
+  for (const r of rows) {
+    const tr = el("tr", r.player_name === session.name ? { className: "me" } : {});
+    tr.append(
+      el("td", {}, r.player_name),
+      el("td", { className: "op-score" }, `${r.home_goals}–${r.away_goals}`),
+      el("td", { className: "op-pts" + (r.points > 0 ? " win" : "") }, `+${r.points}`),
+    );
+    tbody.append(tr);
+  }
+  panel.append(el("table", {}, tbody));
 }
 
 function points(pred, m) {
@@ -339,22 +488,27 @@ function points(pred, m) {
 }
 
 async function savePredictions() {
-  if (dirty.size === 0) { updateStatus("No hay cambios para guardar.", "ok"); return; }
+  if (dirty.size === 0) { toast("No hay cambios para guardar.", "ok"); return; }
   const items = [...dirty.entries()].map(([match_id, v]) => ({
     match_id, home: v.home, away: v.away,
   }));
-  updateStatus("Guardando…");
+  const btns = [$("#save-btn"), $("#save-bar-btn")];
+  btns.forEach((b) => (b.disabled = true));
   const { data, error } = await sb.rpc("save_predictions", {
     p_token: session.token, p_items: items,
   });
+  btns.forEach((b) => (b.disabled = false));
   if (error) {
     if (error.message.includes("SESION_INVALIDA")) return logout();
-    updateStatus("Error al guardar: " + error.message, "err");
+    toast("No se pudo guardar: " + error.message, "err");
     return;
   }
   for (const [id, v] of dirty) myPreds.set(id, v);
   dirty.clear();
-  updateStatus(`✅ Guardado (${data} partido${data === 1 ? "" : "s"}).`, "ok");
+  updatePendingBadge();
+  refreshSaveBar();
+  renderPredictions();
+  toast(`✅ Guardado (${data} partido${data === 1 ? "" : "s"}).`, "ok");
 }
 
 function updateStatus(text, kind) {
@@ -368,14 +522,99 @@ function updateStatus(text, kind) {
 // =====================================================================
 //  RANKING
 // =====================================================================
-async function renderRanking() {
+let rankMode = "general";   // "general" | "weekly"
+let weeklyRows = [];        // cache de leaderboard_weekly de la última carga
+
+function bindRankTabs() {
+  $$("#rank-tabs .tab").forEach((b) =>
+    b.addEventListener("click", () => {
+      rankMode = b.dataset.rank;
+      $$("#rank-tabs .tab").forEach((x) => x.classList.toggle("active", x === b));
+      $("#week-picker").classList.toggle("hidden", rankMode !== "weekly");
+      renderRanking();
+    }));
+  $("#week-select").addEventListener("change", filterWeekly);
+}
+
+function renderRanking() {
+  if (rankMode === "weekly") return renderWeekly();
   const wrap = $("#ranking-table");
   wrap.innerHTML = `<div class="spinner">Cargando…</div>`;
-  const { data, error } = await sb
-    .from("leaderboard").select("*").order("points", { ascending: false });
+  $("#rank-foot").innerHTML =
+    "<b>3</b> por marcador exacto · <b>1</b> por acertar el resultado · <b>0</b> si errás · más los puntos de los pronósticos especiales.";
+  sb.from("leaderboard").select("*").order("points", { ascending: false })
+    .then(({ data, error }) => {
+      if (error) { wrap.innerHTML = `<p class="error">${error.message}</p>`; return; }
+      renderRankTable(wrap, data, ["Pos", "Jugador", "Exactos", "Puntos"],
+        (r) => [r.exact_hits, r.points], (r) => r.player_id);
+    });
+}
+
+// Ranking de UNA fecha del torneo (vista leaderboard_weekly, por semana ISO).
+async function renderWeekly() {
+  const wrap = $("#ranking-table");
+  wrap.innerHTML = `<div class="spinner">Cargando…</div>`;
+  const { data, error } = await sb.from("leaderboard_weekly").select("*");
   if (error) { wrap.innerHTML = `<p class="error">${error.message}</p>`; return; }
-  renderRankTable(wrap, data, ["Pos", "Jugador", "Exactos", "Puntos"],
+  weeklyRows = data || [];
+  buildWeekOptions();
+  filterWeekly();
+}
+
+function filterWeekly() {
+  const wrap = $("#ranking-table");
+  const key = $("#week-select").value;
+  $("#rank-foot").textContent = "Puntos ganados solo en esa fecha del torneo.";
+  if (!key) { wrap.innerHTML = `<p class="muted">Todavía no hay fechas con puntos. ¡Esperá a que se jueguen partidos!</p>`; return; }
+  const rows = weeklyRows
+    .filter((r) => `${r.iso_year}-${r.iso_week}` === key)
+    .sort((a, b) => b.points - a.points || b.exact_hits - a.exact_hits
+      || a.player_name.localeCompare(b.player_name));
+  if (!rows.length) { wrap.innerHTML = `<p class="muted">Sin puntos en esa fecha todavía.</p>`; return; }
+  renderRankTable(wrap, rows, ["Pos", "Jugador", "Exactos", "Puntos"],
     (r) => [r.exact_hits, r.points], (r) => r.player_id);
+}
+
+function buildWeekOptions() {
+  const sel = $("#week-select");
+  const prev = sel.value;
+  const keys = [...new Set(weeklyRows.map((r) => `${r.iso_year}-${r.iso_week}`))]
+    .sort((a, b) => {
+      const [ay, aw] = a.split("-").map(Number), [by, bw] = b.split("-").map(Number);
+      return ay - by || aw - bw;
+    });
+  const labels = weekLabels();
+  sel.innerHTML = "";
+  keys.forEach((k, i) => sel.append(el("option", { value: k }, labels[k] || ("Fecha " + (i + 1)))));
+  if (keys.includes(prev)) sel.value = prev;          // preserva la selección
+  else if (keys.length) sel.value = keys[keys.length - 1]; // por defecto: la más reciente
+}
+
+// Semana ISO (año-semana) de una fecha, en UTC, para que coincida con la vista.
+function isoWeekKey(d) {
+  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7) + 3); // jueves de su semana
+  const firstThu = date.getTime();
+  const year = date.getUTCFullYear();
+  date.setUTCMonth(0, 4);                                                // 4 de enero
+  date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7) + 3);
+  const week = 1 + Math.round((firstThu - date.getTime()) / (7 * 864e5));
+  return `${year}-${week}`;
+}
+
+// Etiqueta amigable por semana ("11 jun – 16 jun"), a partir de los partidos.
+function weekLabels() {
+  const map = {};
+  for (const m of matches) {
+    const d = new Date(m.kickoff);
+    const k = isoWeekKey(d);
+    const cur = map[k] || (map[k] = { min: d, max: d });
+    if (d < cur.min) cur.min = d;
+    if (d > cur.max) cur.max = d;
+  }
+  const out = {};
+  for (const k in map) out[k] = `${fmtDay(map[k].min)} – ${fmtDay(map[k].max)}`;
+  return out;
 }
 
 const MEDALS = ["🥇", "🥈", "🥉"];
@@ -700,7 +939,12 @@ async function saveSpecials() {
     }
     saved++;
   }
-  specialStatus(saved ? `✅ Guardado (${saved} pronóstico${saved > 1 ? "s" : ""}).` : "No completaste ninguno todavía.", saved ? "ok" : "err");
+  if (saved) {
+    specialStatus("");
+    toast(`✅ Guardado (${saved} pronóstico${saved > 1 ? "s" : ""}).`, "ok");
+  } else {
+    specialStatus("No completaste ninguno todavía.", "err");
+  }
 }
 
 function specialStatus(text, kind) {

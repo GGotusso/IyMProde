@@ -4,19 +4,22 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Prode Mundial 2026 ⚽</title>
-  <link rel="stylesheet" href="./css/styles.css?v=6" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./css/styles.css?v=8" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%BD%3C/text%3E%3C/svg%3E" />
 </head>
 <body>
   <header id="topbar" class="hidden">
     <div class="brand">⚽ Prode Mundial <span>2026</span></div>
     <nav id="nav">
-      <button data-view="predictions" class="nav-btn active">Mis pronósticos</button>
-      <button data-view="ranking" class="nav-btn">Ranking</button>
-      <button data-view="especiales" class="nav-btn">Especiales</button>
-      <button data-view="mundial" class="nav-btn">Mundial</button>
-      <button data-view="reglas" class="nav-btn">Reglas</button>
-      <button data-view="admin" class="nav-btn hidden" id="nav-admin">Admin</button>
+      <button data-view="predictions" class="nav-btn active"><span class="ni">📝</span><span class="nl">Pronósticos</span><span id="pending-badge" class="nav-badge hidden"></span></button>
+      <button data-view="ranking" class="nav-btn"><span class="ni">🏆</span><span class="nl">Ranking</span></button>
+      <button data-view="especiales" class="nav-btn"><span class="ni">⭐</span><span class="nl">Especiales</span></button>
+      <button data-view="mundial" class="nav-btn"><span class="ni">🌎</span><span class="nl">Mundial</span></button>
+      <button data-view="reglas" class="nav-btn"><span class="ni">📋</span><span class="nl">Reglas</span></button>
+      <button data-view="admin" class="nav-btn hidden" id="nav-admin"><span class="ni">⚙️</span><span class="nl">Admin</span></button>
     </nav>
     <div class="user-box">
       <span id="user-name"></span>
@@ -54,18 +57,32 @@
         <h2>Mis pronósticos</h2>
         <div class="actions">
           <select id="stage-filter"></select>
+          <label class="toggle"><input type="checkbox" id="pending-only" /> Sólo pendientes</label>
           <button id="save-btn" class="primary">Guardar cambios</button>
         </div>
       </div>
       <p id="pred-status" class="status hidden"></p>
       <div id="matches-list" class="matches"></div>
+      <div id="save-bar" class="save-bar hidden">
+        <span id="save-bar-info"></span>
+        <button id="save-bar-btn" class="primary">Guardar</button>
+      </div>
     </section>
 
     <!-- =================== RANKING =================== -->
     <section id="view-ranking" class="view hidden">
-      <div class="view-head"><h2>🏆 Ranking general</h2></div>
+      <div class="view-head">
+        <h2>🏆 Ranking</h2>
+        <div class="tabs" id="rank-tabs">
+          <button class="tab active" data-rank="general">General</button>
+          <button class="tab" data-rank="weekly">Por fecha</button>
+        </div>
+      </div>
+      <div id="week-picker" class="actions hidden" style="margin-bottom:.8rem">
+        <select id="week-select"></select>
+      </div>
       <div id="ranking-table"></div>
-      <p class="muted small">Puntaje: <b>3</b> por marcador exacto · <b>1</b> por acertar el resultado · <b>0</b> si errás · más los puntos de los pronósticos especiales.</p>
+      <p class="muted small" id="rank-foot"><b>3</b> por marcador exacto · <b>1</b> por acertar el resultado · <b>0</b> si errás · más los puntos de los pronósticos especiales.</p>
     </section>
 
     <!-- ================= ESPECIALES ================= -->
@@ -177,6 +194,8 @@
 
   <footer><span id="conn-status"></span></footer>
 
-  <script type="module" src="./js/app.js?v=6"></script>
+  <div id="toasts" class="toasts"></div>
+
+  <script type="module" src="./js/app.js?v=8"></script>
 </body>
 </html>

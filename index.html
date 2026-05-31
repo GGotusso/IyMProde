@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./css/styles.css?v=8" />
+  <link rel="stylesheet" href="./css/styles.css?v=9" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%BD%3C/text%3E%3C/svg%3E" />
 </head>
 <body>
@@ -76,10 +76,15 @@
         <div class="tabs" id="rank-tabs">
           <button class="tab active" data-rank="general">General</button>
           <button class="tab" data-rank="weekly">Por fecha</button>
+          <button class="tab" data-rank="h2h">Cara a cara</button>
         </div>
       </div>
       <div id="week-picker" class="actions hidden" style="margin-bottom:.8rem">
         <select id="week-select"></select>
+      </div>
+      <div id="h2h-picker" class="actions hidden" style="margin-bottom:.8rem">
+        <span class="muted small">Te comparás con:</span>
+        <select id="h2h-select"></select>
       </div>
       <div id="ranking-table"></div>
       <p class="muted small" id="rank-foot"><b>3</b> por marcador exacto · <b>1</b> por acertar el resultado · <b>0</b> si errás · más los puntos de los pronósticos especiales.</p>
@@ -196,6 +201,6 @@
 
   <div id="toasts" class="toasts"></div>
 
-  <script type="module" src="./js/app.js?v=8"></script>
+  <script type="module" src="./js/app.js?v=9"></script>
 </body>
 </html>

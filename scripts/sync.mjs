@@ -206,7 +206,8 @@ function oddsFetchDecision(rows) {
   if (hToNext <= 3)  { stride = 1;  band = "≤3 h"; }
   else if (hToNext <= 24) { stride = 3;  band = "≤24 h"; }
   else if (hToNext <= 72) { stride = 12; band = "≤72 h"; }
-  else return { fetch: false, reason: `próximo partido en ${hToNext.toFixed(0)} h (>72 h)` };
+  else if (hToNext <= 336) { stride = 24; band = "≤14 d"; } // 1 vez/día en la previa
+  else return { fetch: false, reason: `próximo partido en ${hToNext.toFixed(0)} h (>14 d)` };
   const fetch = hour % stride === 0;
   return { fetch, reason: `próximo partido en ${hToNext.toFixed(1)} h (banda ${band}, cada ${stride} h)` };
 }
@@ -333,6 +334,7 @@ async function main() {
   //   • hay un partido en ≤ 3 h  -> cada hora        (las cuotas se mueven más cerca del KO)
   //   • hay un partido en ≤ 24 h -> cada 3 h
   //   • hay un partido en ≤ 72 h -> cada 12 h
+  //   • hay un partido en ≤ 14 d -> 1 vez por día (previa: ya hay líneas cargadas)
   //   • no hay partidos próximos -> no se pide nada (ahorra cuota fuera de fechas)
   // En días pico del Mundial esto da ~12-15 llamadas/día → bien por debajo de 500/mes.
   if (ODDS_API_KEY) {

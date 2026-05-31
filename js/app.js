@@ -431,6 +431,12 @@ function matchRow(m) {
   meta.append(right);
   row.append(meta);
 
+  // Cuotas 1/X/2 al lado del partido que vas a pronosticar (si ya hay datos).
+  if (!played && !started(m)) {
+    const chips = oddsChips(m);
+    if (chips) row.append(el("div", { className: "match-odds" }, chips));
+  }
+
   // Una vez que el partido empezó, se puede ver qué pronosticó cada uno.
   if (started(m)) attachOthers(row, m);
   return row;
@@ -522,8 +528,9 @@ function updateStatus(text, kind) {
 // =====================================================================
 //  RANKING
 // =====================================================================
-let rankMode = "general";   // "general" | "weekly"
+let rankMode = "general";   // "general" | "weekly" | "h2h"
 let weeklyRows = [];        // cache de leaderboard_weekly de la última carga
+let h2hPlayers = null;      // cache de jugadores para el selector de cara a cara
 
 function bindRankTabs() {
   $$("#rank-tabs .tab").forEach((b) =>
@@ -531,13 +538,16 @@ function bindRankTabs() {
       rankMode = b.dataset.rank;
       $$("#rank-tabs .tab").forEach((x) => x.classList.toggle("active", x === b));
       $("#week-picker").classList.toggle("hidden", rankMode !== "weekly");
+      $("#h2h-picker").classList.toggle("hidden", rankMode !== "h2h");
       renderRanking();
     }));
   $("#week-select").addEventListener("change", filterWeekly);
+  $("#h2h-select").addEventListener("change", renderH2H);
 }
 
 function renderRanking() {
   if (rankMode === "weekly") return renderWeekly();
+  if (rankMode === "h2h") return renderH2HTab();
   const wrap = $("#ranking-table");
   wrap.innerHTML = `<div class="spinner">Cargando…</div>`;
   $("#rank-foot").innerHTML =
@@ -573,6 +583,103 @@ function filterWeekly() {
   if (!rows.length) { wrap.innerHTML = `<p class="muted">Sin puntos en esa fecha todavía.</p>`; return; }
   renderRankTable(wrap, rows, ["Pos", "Jugador", "Exactos", "Puntos"],
     (r) => [r.exact_hits, r.points], (r) => r.player_id);
+}
+
+// =====================================================================
+//  CARA A CARA · vos vs. otro jugador, partido por partido
+// =====================================================================
+// Prepara el selector de jugadores (de la tabla general) y dispara la comparación.
+async function renderH2HTab() {
+  const sel = $("#h2h-select");
+  const wrap = $("#ranking-table");
+  $("#rank-foot").textContent = "Comparación partido por partido sobre los que ya se jugaron.";
+  if (!h2hPlayers) {
+    wrap.innerHTML = `<div class="spinner">Cargando…</div>`;
+    const { data, error } = await sb.from("leaderboard").select("player_id,player_name");
+    if (error) { wrap.innerHTML = `<p class="error">${error.message}</p>`; return; }
+    h2hPlayers = (data || []).filter((p) => p.player_id !== session.player_id)
+      .sort((a, b) => a.player_name.localeCompare(b.player_name));
+    const prev = sel.value;
+    sel.innerHTML = "";
+    if (!h2hPlayers.length) {
+      wrap.innerHTML = `<p class="muted empty-state">Todavía sos el único jugador del grupo. 😅<br>Cuando entren tus amigos vas a poder compararte con ellos.</p>`;
+      return;
+    }
+    sel.append(el("option", { value: "" }, "— elegí un jugador —"));
+    for (const p of h2hPlayers) sel.append(el("option", { value: p.player_id }, p.player_name));
+    if (h2hPlayers.some((p) => p.player_id === prev)) sel.value = prev;
+  }
+  if (!h2hPlayers.length) return;
+  renderH2H();
+}
+
+async function renderH2H() {
+  const wrap = $("#ranking-table");
+  const otherId = $("#h2h-select").value;
+  if (!otherId) {
+    wrap.innerHTML = `<p class="muted empty-state">Elegí un jugador arriba para ver el cara a cara.</p>`;
+    return;
+  }
+  const otherName = h2hPlayers.find((p) => p.player_id === otherId)?.player_name || "rival";
+  wrap.innerHTML = `<div class="spinner">Cargando…</div>`;
+  const { data, error } = await sb.rpc("head_to_head", {
+    p_token: session.token, p_other: otherId,
+  });
+  if (error) {
+    if (error.message.includes("SESION_INVALIDA")) return logout();
+    wrap.innerHTML = `<p class="error">${error.message}</p>`;
+    return;
+  }
+  const rows = data || [];
+  if (!rows.length) {
+    wrap.innerHTML = `<p class="muted empty-state">Todavía no hay partidos jugados para comparar. ¡Volvé cuando ruede la pelota! ⚽</p>`;
+    return;
+  }
+
+  // Totales y récord (ganados / empatados / perdidos por partido).
+  let myTotal = 0, theirTotal = 0, w = 0, d = 0, l = 0;
+  for (const r of rows) {
+    const mp = r.my_points ?? 0, tp = r.their_points ?? 0;
+    myTotal += mp; theirTotal += tp;
+    if (mp > tp) w++; else if (mp < tp) l++; else d++;
+  }
+
+  wrap.innerHTML = "";
+  // Encabezado tipo marcador
+  const head = el("div", { className: "h2h-head" });
+  const side = (name, pts, cls) => el("div", { className: "h2h-side " + cls },
+    el("span", { className: "h2h-name" }, name),
+    el("span", { className: "h2h-total" }, String(pts)));
+  head.append(
+    side("Vos", myTotal, myTotal >= theirTotal ? "lead" : ""),
+    el("div", { className: "h2h-vs" }, "vs"),
+    side(otherName, theirTotal, theirTotal > myTotal ? "lead" : ""),
+  );
+  wrap.append(head);
+  wrap.append(el("p", { className: "h2h-record muted small" },
+    `Le ganaste a ${otherName} en ${w}, empataron en ${d} y perdiste en ${l} de ${rows.length} partidos jugados.`));
+
+  // Detalle partido por partido
+  const list = el("div", { className: "h2h-list" });
+  for (const r of rows) {
+    const mp = r.my_points, tp = r.their_points;
+    const card = el("div", { className: "h2h-row" });
+    card.append(el("div", { className: "h2h-fixture" },
+      el("span", {}, `${T(r.home_team)} ${r.home_goals}-${r.away_goals} ${T(r.away_team)}`)));
+    const cell = (h, a, pts, winner) => {
+      const c = el("div", { className: "h2h-cell" + (winner ? " win" : "") });
+      c.append(el("span", { className: "h2h-pick" }, h != null ? `${h}-${a}` : "—"));
+      c.append(el("span", { className: "h2h-pts" }, pts != null ? `+${pts}` : "·"));
+      return c;
+    };
+    const meWin = (mp ?? -1) > (tp ?? -1), themWin = (tp ?? -1) > (mp ?? -1);
+    card.append(el("div", { className: "h2h-cells" },
+      cell(r.my_home, r.my_away, mp, meWin),
+      cell(r.their_home, r.their_away, tp, themWin),
+    ));
+    list.append(card);
+  }
+  wrap.append(list);
 }
 
 function buildWeekOptions() {
@@ -700,6 +807,38 @@ function computeStandings() {
   }));
 }
 
+// ¿El partido tiene cuotas 1X2 cargadas?
+const hasOdds = (m) => m.odds_home != null || m.odds_draw != null || m.odds_away != null;
+
+// Chips 1 / X / 2 con la cuota PROMEDIO (tooltip = casa que más paga). null si no hay.
+function oddsChips(m) {
+  if (!hasOdds(m)) return null;
+  const best = m.odds_best || null;
+  const o = (v) => (v != null ? Number(v).toFixed(2) : "–");
+  const chip = (lab, avg, b, fallbackTitle) => el("span", {
+    className: "odd",
+    title: b ? `Mejor casa: ${b.book} paga ${Number(b.price).toFixed(2)}` : fallbackTitle,
+  }, lab + " ", el("b", {}, o(avg)));
+  return el("span", { className: "odds" },
+    chip("1", m.odds_home, best && best.home, T(m.home_team)),
+    chip("X", m.odds_draw, best && best.draw, "Empate"),
+    chip("2", m.odds_away, best && best.away, T(m.away_team)),
+  );
+}
+
+// Línea "💰 Mejor casa" por resultado (la que más paga). null si no hay.
+function bestOddsLine(m) {
+  const best = m.odds_best || null;
+  if (!best || !(best.home || best.draw || best.away)) return null;
+  const p = (v) => Number(v).toFixed(2);
+  const seg = (lab, b) => b
+    ? el("span", { className: "best-seg" }, lab + ": ", el("b", {}, b.book), " ", el("span", { className: "bp" }, p(b.price)))
+    : null;
+  const line = el("div", { className: "best-odds" }, el("span", { className: "best-label" }, "💰 Mejor casa "));
+  for (const s of [seg("1", best.home), seg("X", best.draw), seg("2", best.away)]) if (s) line.append(s);
+  return line;
+}
+
 function renderUpcoming() {
   const wrap = $("#upcoming-list");
   wrap.innerHTML = "";
@@ -709,6 +848,7 @@ function renderUpcoming() {
     .sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))
     .slice(0, 8);
   if (!next.length) { wrap.innerHTML = `<p class="muted">No hay próximos partidos cargados.</p>`; return; }
+  let anyOdds = false;
   for (const m of next) {
     const row = el("div", { className: "match" });
     row.append(
@@ -720,32 +860,17 @@ function renderUpcoming() {
     );
     const meta = el("div", { className: "match-meta" });
     meta.append(el("span", {}, fmtDate(m.kickoff)));
-    const best = m.odds_best || null;
-    if (m.odds_home != null || m.odds_draw != null || m.odds_away != null) {
-      const o = (v) => (v != null ? Number(v).toFixed(2) : "–");
-      // Cada chip muestra la cuota PROMEDIO; el tooltip dice qué casa paga más.
-      const chip = (lab, avg, b, fallbackTitle) => el("span", {
-        className: "odd",
-        title: b ? `Mejor casa: ${b.book} paga ${Number(b.price).toFixed(2)}` : fallbackTitle,
-      }, lab + " ", el("b", {}, o(avg)));
-      meta.append(el("span", { className: "odds" },
-        chip("1", m.odds_home, best && best.home, T(m.home_team)),
-        chip("X", m.odds_draw, best && best.draw, "Empate"),
-        chip("2", m.odds_away, best && best.away, T(m.away_team)),
-      ));
-    }
+    const chips = oddsChips(m);
+    if (chips) { meta.append(chips); anyOdds = true; }
     row.append(meta);
-    // Línea con la mejor casa de apuestas por resultado (la que más paga).
-    if (best && (best.home || best.draw || best.away)) {
-      const p = (v) => Number(v).toFixed(2);
-      const seg = (lab, b) => b
-        ? el("span", { className: "best-seg" }, lab + ": ", el("b", {}, b.book), " ", el("span", { className: "bp" }, p(b.price)))
-        : null;
-      const line = el("div", { className: "best-odds" }, el("span", { className: "best-label" }, "💰 Mejor casa "));
-      for (const s of [seg("1", best.home), seg("X", best.draw), seg("2", best.away)]) if (s) line.append(s);
-      row.append(line);
-    }
+    const best = bestOddsLine(m);
+    if (best) row.append(best);
     wrap.append(row);
+  }
+  // Pista amigable cuando todavía no hay cuotas (aparecen cerca del partido).
+  if (!anyOdds) {
+    wrap.append(el("p", { className: "muted small odds-hint" },
+      "💡 Las cuotas 1 / X / 2 (promedio de casas de apuestas) aparecen acá y en tus pronósticos unos días antes de cada partido."));
   }
 }
 

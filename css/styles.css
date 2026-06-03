@@ -460,7 +460,16 @@ table.rank tbody tr.me { box-shadow: inset 3px 0 0 var(--accent); }
 /* En pantallas chicas, menos caras y más chicas para no saturar */
 @media (max-width: 620px) {
   .t7, .t8, .t9, .t10 { display: none; }
-  .tanke { width: 52px !important; }
+  .tanke { width: 46px !important; }
+
+  /* Más alto y card más angosta: deja franjas arriba/abajo y a los
+     costados para que las caras se vean flotando (no las tapa la card). */
+  .login-wrap { min-height: 86vh; }
+  .login-card {
+    width: 84%;
+    max-width: 320px;
+    padding: 1.5rem 1.3rem;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .tanke .face { animation: none; }

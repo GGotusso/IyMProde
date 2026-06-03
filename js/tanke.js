@@ -7,6 +7,9 @@
   if (!wrap || !field || !card) return;
 
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // En mobile la card ocupa casi todo: las caras flotan por delante y pasan
+  // por encima (sin esquivarla ni rebotar contra ella) para que se vean.
+  const mobileMQ = window.matchMedia('(max-width: 620px)');
 
   // Estado por cada cara: posición (x,y) y velocidad (vx,vy) en px/seg.
   let faces = [];
@@ -37,7 +40,7 @@
         x = Math.random() * (w - size);
         y = Math.random() * (h - size);
         tries++;
-      } while (tries < 30 && overlapsCard({ x, y, size }, card));
+      } while (!mobileMQ.matches && tries < 30 && overlapsCard({ x, y, size }, card));
       return { el, visible, size, x, y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed };
     });
   }
@@ -69,7 +72,8 @@
       else if (f.y + f.size >= h) { f.y = h - f.size; f.vy = -Math.abs(f.vy); }
 
       // Rebote contra la tarjeta: resuelve por el eje de menor penetración.
-      if (f.x < c.right && f.x + f.size > c.left && f.y < c.bottom && f.y + f.size > c.top) {
+      // En mobile no rebota: pasa por encima de la card (capa por delante).
+      if (!mobileMQ.matches && f.x < c.right && f.x + f.size > c.left && f.y < c.bottom && f.y + f.size > c.top) {
         const penL = c.right - f.x;          // empujar a la derecha
         const penR = f.x + f.size - c.left;  // empujar a la izquierda
         const penT = c.bottom - f.y;         // empujar hacia abajo

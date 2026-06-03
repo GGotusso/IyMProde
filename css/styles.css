@@ -470,6 +470,11 @@ table.rank tbody tr.me { box-shadow: inset 3px 0 0 var(--accent); }
     max-width: 320px;
     padding: 1.5rem 1.3rem;
   }
+  /* En mobile no hay hueco libre alrededor de la card, así que las caras
+     flotan POR DELANTE (capa decorativa, sin bloquear inputs por
+     pointer-events:none) y pasan por encima en vez de quedar tapadas. */
+  .tanke-field { z-index: 3; }
+  .tanke { opacity: .82; }
 }
 @media (prefers-reduced-motion: reduce) {
   .tanke .face { animation: none; }

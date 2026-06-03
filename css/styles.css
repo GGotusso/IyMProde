@@ -372,13 +372,34 @@ table.rank tbody tr.me { box-shadow: inset 3px 0 0 var(--accent); }
 /* Login con más identidad */
 .login-card {
   position: relative; overflow: hidden;
-  background: linear-gradient(180deg, rgba(27,34,54,.95), rgba(18,23,38,.95));
+  background:
+    linear-gradient(180deg, rgba(15,20,34,.80), rgba(12,16,28,.93)),
+    url("../PictureGroups.png") center / cover no-repeat;
 }
 .login-card::before {
   content: ""; position: absolute; inset: -2px -2px auto -2px; height: 4px;
   background: linear-gradient(90deg, var(--accent), var(--accent2), var(--gold));
 }
 .login-card h1 { font-size: 1.8rem; font-weight: 800; }
+.login-card h1,
+.login-card > .muted,
+.login-card .hint { text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+.login-card > .muted { color: #d7dce8; }
+
+/* Inputs del login translúcidos: se ve la foto detrás */
+#login-form label { color: #e7eaf2; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+#login-form input {
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.30);
+  color: #fff;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+#login-form input::placeholder { color: rgba(255,255,255,.65); }
+#login-form input:focus {
+  background: rgba(255,255,255,.16);
+  border-color: var(--accent2);
+}
 
 /* Chip de puntos con leve glow */
 .pts-chip { box-shadow: 0 0 14px rgba(52,211,153,.18); }

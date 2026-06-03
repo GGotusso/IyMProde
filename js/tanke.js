@@ -111,7 +111,7 @@
 
     function sync() {
       if (cfg.isVisible()) {
-        if (cfg.hideWhenIdle) field.style.display = '';
+        if (cfg.hideWhenIdle) field.style.display = 'block';
         setup();
         start();
       } else {

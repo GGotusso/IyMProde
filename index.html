@@ -7,10 +7,22 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./css/styles.css?v=11" />
+  <link rel="stylesheet" href="./css/styles.css?v=12" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%BD%3C/text%3E%3C/svg%3E" />
 </head>
 <body>
+  <!-- Caras Tanke flotando de fondo en el menú principal (sutil, decorativo) -->
+  <div id="tanke-bg" class="tanke-bg" aria-hidden="true">
+    <div class="tanke t1"><div class="face"><img src="tanke-face.png" alt=""></div></div>
+    <div class="tanke t2 nose"><div class="face"><img src="tanke-face.png" alt=""></div></div>
+    <div class="tanke t3"><div class="face"><img src="tanke-face.png" alt=""></div></div>
+    <div class="tanke t4 hat"><div class="face"><img src="tanke-face.png" alt=""></div></div>
+    <div class="tanke t5"><div class="face"><img src="tanke-face.png" alt=""></div></div>
+    <div class="tanke t6 nose"><div class="face"><img src="tanke-face.png" alt=""></div></div>
+    <div class="tanke t7"><div class="face"><img src="tanke-face.png" alt=""></div></div>
+    <div class="tanke t8 hat"><div class="face"><img src="tanke-face.png" alt=""></div></div>
+  </div>
+
   <header id="topbar" class="hidden">
     <div class="brand">⚽ Prode Mundial <span>2026</span></div>
     <nav id="nav">
@@ -222,6 +234,6 @@
   <div id="toasts" class="toasts"></div>
 
   <script type="module" src="./js/app.js?v=10"></script>
-  <script src="./js/tanke.js?v=2" defer></script>
+  <script src="./js/tanke.js?v=3" defer></script>
 </body>
 </html>

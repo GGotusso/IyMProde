@@ -406,6 +406,14 @@ table.rank tbody tr.me { box-shadow: inset 3px 0 0 var(--accent); }
 .tanke-field { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
 .login-card { z-index: 2; }
 
+/* Capa de fondo del menú principal: caras flotando, muy transparentes.
+   z-index 5 = por encima del contenido pero debajo de topbar(10),
+   save-bar(25), nav inferior(30) y toasts(50). La enciende el JS al loguear. */
+.tanke-bg {
+  position: fixed; inset: 0; pointer-events: none;
+  z-index: 5; opacity: .14; display: none;
+}
+
 .tanke {
   position: absolute; top: 0; left: 0; width: 72px; aspect-ratio: 1;
   will-change: transform;

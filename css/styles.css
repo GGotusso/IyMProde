@@ -401,6 +401,71 @@ table.rank tbody tr.me { box-shadow: inset 3px 0 0 var(--accent); }
   border-color: var(--accent2);
 }
 
+/* ===== Caras flotantes alrededor del login ===== */
+.login-wrap { position: relative; overflow: hidden; }
+.tanke-field { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.login-card { z-index: 2; }
+
+.tanke {
+  position: absolute; top: 0; left: 0; width: 72px; aspect-ratio: 1;
+  will-change: transform;
+}
+.tanke .face {
+  position: relative; width: 100%; height: 100%;
+  animation: tanke-spin 14s linear infinite;
+}
+.tanke .face img {
+  width: 100%; height: 100%; object-fit: contain;
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,.45));
+}
+
+/* Bonete (gorro de fiesta) */
+.tanke.hat .face::before {
+  content: ""; position: absolute; left: 50%; top: -36%;
+  width: 48%; height: 52%; transform: translateX(-50%);
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  clip-path: polygon(50% 0, 0 100%, 100% 100%);
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,.4));
+}
+.tanke.hat .face::after { /* pompón */
+  content: ""; position: absolute; left: 50%; top: -42%;
+  width: 16%; height: 16%; transform: translateX(-50%);
+  border-radius: 50%; background: var(--gold);
+  box-shadow: 0 0 6px rgba(250,204,21,.7);
+}
+
+/* Nariz de payaso */
+.tanke.nose .face::before {
+  content: ""; position: absolute; left: 50%; top: 44%; z-index: 1;
+  width: 27%; height: 27%; transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ff8a8a, #e11d2a 70%);
+  box-shadow: 0 1px 2px rgba(0,0,0,.45);
+}
+
+/* tamaños + velocidad de giro variados (la posición la maneja el JS) */
+.t1  { width: 80px; } .t1  .face { animation-duration: 12s; }
+.t2  { width: 66px; } .t2  .face { animation-duration: 16s; animation-direction: reverse; }
+.t3  { width: 70px; } .t3  .face { animation-duration: 13s; }
+.t4  { width: 74px; } .t4  .face { animation-duration: 15s; animation-direction: reverse; }
+.t5  { width: 68px; } .t5  .face { animation-duration: 11s; }
+.t6  { width: 78px; } .t6  .face { animation-duration: 14s; animation-direction: reverse; }
+.t7  { width: 60px; } .t7  .face { animation-duration: 17s; }
+.t8  { width: 62px; } .t8  .face { animation-duration: 13.5s; animation-direction: reverse; }
+.t9  { width: 56px; } .t9  .face { animation-duration: 12.5s; }
+.t10 { width: 58px; } .t10 .face { animation-duration: 15.5s; animation-direction: reverse; }
+
+@keyframes tanke-spin { to { transform: rotate(360deg); } }
+
+/* En pantallas chicas, menos caras y más chicas para no saturar */
+@media (max-width: 620px) {
+  .t7, .t8, .t9, .t10 { display: none; }
+  .tanke { width: 52px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tanke .face { animation: none; }
+}
+
 /* Chip de puntos con leve glow */
 .pts-chip { box-shadow: 0 0 14px rgba(52,211,153,.18); }
 .pts-chip.zero { box-shadow: 0 0 14px rgba(248,113,113,.16); }

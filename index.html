@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./css/styles.css?v=16" />
+  <link rel="stylesheet" href="./css/styles.css?v=17" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%BD%3C/text%3E%3C/svg%3E" />
 </head>
 <body>
@@ -329,9 +329,11 @@
         <button class="tab active" data-atab="players">Jugadores</button>
         <button class="tab" data-atab="matches">Resultados / Llaves</button>
         <button class="tab" data-atab="fantasy">Fantasy</button>
+        <button class="tab" data-atab="fpoints">Puntos Fantasy</button>
       </div>
       <div id="admin-players" class="admin-pane"></div>
       <div id="admin-fantasy" class="admin-pane hidden"></div>
+      <div id="admin-fpoints" class="admin-pane hidden"></div>
       <div id="admin-matches" class="admin-pane hidden">
         <p class="muted">⚙️ Normalmente <b>no hace falta tocar nada acá</b>: los resultados y las
           llaves de eliminatoria se cargan <b>solos</b> desde la API cada hora. Usá esto solo como
@@ -346,7 +348,7 @@
 
   <div id="toasts" class="toasts"></div>
 
-  <script type="module" src="./js/app.js?v=14"></script>
+  <script type="module" src="./js/app.js?v=15"></script>
   <script src="./js/tanke.js?v=4" defer></script>
 </body>
 </html>

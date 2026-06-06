@@ -627,6 +627,12 @@ table.rank tbody tr.me { box-shadow: inset 3px 0 0 var(--accent); }
 .af-row .af-photourl { flex: 2 1 12rem; min-width: 8rem; font-size: .8rem; }
 .af-save { padding: .45rem .8rem; }
 .af-del { padding: .4rem .6rem; }
+.afp-results { display: grid; gap: .4rem; margin-top: .6rem; }
+.afp-result { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+  background: var(--bg2); border: 1px solid var(--line); border-radius: 10px; padding: .4rem .6rem; }
+.afp-result > span { flex: 1 1 10rem; }
+.afp-pts { width: 4.6rem; }
+.af-row .afp-pts { width: 4.6rem; }
 @media (max-width: 560px) {
   .af-row .af-name, .af-row .af-photourl { flex-basis: 100%; }
 }

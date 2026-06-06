@@ -1129,7 +1129,9 @@ function bindAdminTabs() {
       $("#admin-players").classList.toggle("hidden", t !== "players");
       $("#admin-matches").classList.toggle("hidden", t !== "matches");
       $("#admin-fantasy").classList.toggle("hidden", t !== "fantasy");
+      $("#admin-fpoints").classList.toggle("hidden", t !== "fpoints");
       if (t === "fantasy") renderAdminFantasy();
+      if (t === "fpoints") renderAdminFpoints();
     }));
 }
 
@@ -1250,6 +1252,7 @@ function adminFantasyErr(msg = "") {
   if (msg.includes("POSICION")) return "Posición inválida.";
   if (msg.includes("PRECIO")) return "El precio debe ser mayor a 0.";
   if (msg.includes("JUGADOR_INEXISTENTE")) return "Ese jugador ya no existe.";
+  if (msg.includes("PARTIDO_INEXISTENTE")) return "Ese partido no existe.";
   if (msg.includes("SESION_INVALIDA")) return "Tu sesión expiró, volvé a entrar.";
   return "Error: " + msg;
 }
@@ -1363,6 +1366,116 @@ function adminFantasyRow(p) {
     row.remove();
   };
   row.append(photo, name, pos, price, photoUrl, save, del);
+  return row;
+}
+
+// =====================================================================
+//  ADMIN · Puntos Fantasy (carga manual, fallback del automático)
+//  Asigna puntos por jugador y partido (tabla fantasy_manual_points).
+//  Vincula por footballer_id (los jugadores cargados a mano no tienen
+//  api_player_id). Suma al ranking y se duplica si el jugador es capitán.
+// =====================================================================
+let afpMatch = "";  // match_id seleccionado
+
+function renderAdminFpoints() {
+  const wrap = $("#admin-fpoints");
+  wrap.innerHTML = "";
+  wrap.append(el("p", { className: "muted small" },
+    "Cargá puntos a mano cuando el automático no los trae. Se asignan por jugador y partido, " +
+    "suman al ranking del Fantasy y se duplican si el jugador es capitán de quien lo tiene. " +
+    "Si después llega el dato automático, la carga manual tiene prioridad."));
+
+  const ctr = el("div", { className: "af-controls" });
+  const sel = el("select");
+  sel.append(el("option", { value: "" }, "— Elegí un partido —"));
+  for (const m of matches) {
+    sel.append(el("option", { value: m.id },
+      `${T(m.home_team)} vs ${T(m.away_team)} · ${fmtDay(m.kickoff)}`));
+  }
+  sel.value = afpMatch;
+  sel.onchange = () => { afpMatch = sel.value; renderFpointsBody(); };
+  ctr.append(el("label", {}, "Partido ", sel));
+  wrap.append(ctr);
+
+  wrap.append(el("div", { id: "afp-body" }));
+  renderFpointsBody();
+}
+
+async function renderFpointsBody() {
+  const body = $("#afp-body");
+  if (!body) return;
+  if (!afpMatch) { body.innerHTML = `<p class="muted small">Elegí un partido para cargar puntos.</p>`; return; }
+  body.innerHTML = `<div class="spinner">Cargando…</div>`;
+  const { data, error } = await sb.from("fantasy_manual_points")
+    .select("footballer_id,points,fantasy_players(name,team,position)")
+    .eq("match_id", afpMatch);
+  if (error) { body.innerHTML = `<p class="error">${error.message}</p>`; return; }
+  body.innerHTML = "";
+  body.append(afpAddSection());
+
+  const list = el("div", { className: "af-list", style: "margin-top:1rem" });
+  list.append(el("h3", { className: "block-title" }, "Puntos cargados"));
+  if (!data.length) list.append(el("p", { className: "muted small" }, "Todavía no cargaste puntos para este partido."));
+  for (const r of data) list.append(afpRow(r));
+  body.append(list);
+}
+
+function afpAddSection() {
+  const box = el("div", { className: "af-add" });
+  const search = el("input", { type: "text", placeholder: "Buscar jugador por nombre…" });
+  const results = el("div", { className: "afp-results" });
+  let timer;
+  search.oninput = () => { clearTimeout(timer); timer = setTimeout(() => afpSearch(search.value, results), 250); };
+  box.append(el("h3", { className: "block-title" }, "➕ Agregar jugador"), search, results);
+  return box;
+}
+
+async function afpSearch(q, container) {
+  container.innerHTML = "";
+  q = q.trim().replace(/[,()%]/g, " ");
+  if (q.length < 2) return;
+  const { data, error } = await sb.from("fantasy_players")
+    .select("id,name,team,position").ilike("name", `%${q}%`)
+    .order("price", { ascending: false }).limit(20);
+  if (error || !data || !data.length) {
+    container.append(el("p", { className: "muted small" }, "Sin resultados.")); return;
+  }
+  for (const p of data) {
+    const pts = el("input", { type: "number", step: "1", value: "0", className: "afp-pts" });
+    const add = el("button", { className: "primary" }, "Cargar");
+    add.onclick = () => afpSave(p.id, +pts.value, p.name);
+    container.append(el("div", { className: "afp-result" },
+      el("span", {}, `${p.name} · ${T(p.team)} · ${p.position}`), pts, add));
+  }
+}
+
+async function afpSave(footballerId, points, label = "") {
+  const { error } = await sb.rpc("fantasy_set_manual_points", {
+    p_token: session.token, p_match_id: afpMatch, p_footballer: footballerId,
+    p_points: Math.round(points) || 0,
+  });
+  if (error) { toast(adminFantasyErr(error.message), "err"); return; }
+  toast(`✅ Puntos guardados${label ? " · " + label : ""}.`, "ok");
+  renderFpointsBody();
+}
+
+function afpRow(r) {
+  const fp = r.fantasy_players || {};
+  const row = el("div", { className: "af-row" });
+  const name = el("span", { className: "af-name" },
+    `${fp.name || "?"} · ${T(fp.team || "")} · ${fp.position || ""}`);
+  const pts = el("input", { type: "number", step: "1", value: r.points, className: "afp-pts" });
+  const save = el("button", { className: "primary af-save" }, "Guardar");
+  save.onclick = () => afpSave(r.footballer_id, +pts.value, fp.name);
+  const del = el("button", { className: "ghost danger af-del", title: "Borrar" }, "🗑");
+  del.onclick = async () => {
+    const { error } = await sb.rpc("fantasy_del_manual_points", {
+      p_token: session.token, p_match_id: afpMatch, p_footballer: r.footballer_id,
+    });
+    if (error) { toast(adminFantasyErr(error.message), "err"); return; }
+    toast("✅ Borrado.", "ok"); renderFpointsBody();
+  };
+  row.append(name, pts, save, del);
   return row;
 }
 

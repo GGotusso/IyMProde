@@ -142,15 +142,29 @@ function priceFor(prices, name, position) {
     ?? prices.defaults[position];
 }
 
+// Término de búsqueda por selección cuando el nombre no matchea directo.
+const SEARCH_TERM = {
+  "bosnia herzegovina": "bosnia",
+  "czechia": "czech",
+  "curacao": "curacao",
+  "cote divoire": "ivory coast",
+  "north korea": "korea",
+  "dr congo": "congo",
+};
 // Busca el id de una selección por nombre (prioriza equipo NACIONAL).
 async function findTeamId(name) {
   const target = normTeam(name);
-  // El endpoint search solo admite alfanuméricos y espacios (ej. "Bosnia-Herzegovina").
-  const q = name.replace(/[^a-z0-9 ]/gi, " ").replace(/\s+/g, " ").trim();
+  // El endpoint search solo admite alfanuméricos y espacios; además sacamos
+  // acentos (ej. "Curaçao" -> "Curacao", "Bosnia-Herzegovina" -> "Bosnia").
+  const q = (SEARCH_TERM[target] || name)
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9 ]/gi, " ").replace(/\s+/g, " ").trim();
   const res = await apiGet(`teams?search=${encodeURIComponent(q)}`);
+  const first = target.split(" ")[0];
   return (
     res.find((r) => r.team.national && normTeam(r.team.name) === target) ||
-    res.find((r) => r.team.national && normTeam(r.team.name).includes(target)) ||
+    res.find((r) => r.team.national && (normTeam(r.team.name).includes(target) || target.includes(normTeam(r.team.name)))) ||
+    res.find((r) => r.team.national && normTeam(r.team.name).startsWith(first)) ||
     res.find((r) => normTeam(r.team.name) === target)
   )?.team.id || null;
 }

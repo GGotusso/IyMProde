@@ -294,7 +294,7 @@ function showView(view) {
 
   // Lo mismo para el plantel de Fantasy.
   const leavingFantasy = !$("#view-fantasy").classList.contains("hidden");
-  if (leavingFantasy && view !== "fantasy" && fantasyEntered && !fLocked
+  if (leavingFantasy && view !== "fantasy" && fantasyEntered && !fLocked && !fNotOpen
       && fantasySnap() !== fSavedSnap) {
     if (!confirm("Tenés cambios sin guardar en tu plantel de Fantasy.\n¿Salir igual y descartarlos?")) return;
   }
@@ -1442,7 +1442,8 @@ let fPhase = 1;
 let fFormation = FORMATIONS[0];
 let fSquad = { GK: [], DEF: [], MID: [], FWD: [] };
 let fCaptain = null;
-let fLocked = false;
+let fLocked = false;             // la fase ya arrancó: plantel fijo
+let fNotOpen = false;            // la fase todavía no se habilita (futura)
 let fPickPos = null;              // posición que se está eligiendo en el overlay
 let fSavedSnap = "";             // snapshot del último estado guardado (para "sin guardar")
 
@@ -1466,13 +1467,29 @@ function phaseDeadline(n) {
     .map((m) => +new Date(m.kickoff)).filter((t) => !isNaN(t));
   return ks.length ? new Date(Math.min(...ks)) : null;
 }
-function defaultPhase() {
+// Una fase de eliminatoria se habilita unos días antes de su deadline (recién
+// ahí se van conociendo los clasificados). La fase de grupos está abierta desde
+// el arranque. Antes de eso la fase está "futura" y no se puede editar.
+const FANTASY_OPEN_LEAD_DAYS = 3;
+function phaseOpenTime(n) {
+  if (n <= 1) return null;                 // grupos: siempre abierta hasta cerrar
+  const dl = phaseDeadline(n);
+  return dl ? new Date(+dl - FANTASY_OPEN_LEAD_DAYS * 864e5) : null;
+}
+// "closed" = ya arrancó (queda fija) · "future" = todavía no se habilita · "open"
+function phaseState(n) {
+  const dl = phaseDeadline(n);
   const now = new Date();
-  for (const ph of FANTASY_PHASES) {
-    const dl = phaseDeadline(ph.n);
-    if (!dl || dl > now) return ph.n;
-  }
-  return 5;
+  if (dl && now >= dl) return "closed";
+  const ot = phaseOpenTime(n);
+  if (ot && now < ot) return "future";
+  return "open";
+}
+function defaultPhase() {
+  const open = FANTASY_PHASES.find((p) => phaseState(p.n) === "open");
+  if (open) return open.n;
+  const notClosed = FANTASY_PHASES.find((p) => phaseState(p.n) !== "closed");
+  return notClosed ? notClosed.n : 5;
 }
 
 function bindFantasy() {
@@ -1482,8 +1499,10 @@ function bindFantasy() {
       $$("#fantasy-tabs .tab").forEach((x) => x.classList.toggle("active", x === b));
       $("#fantasy-squad-pane").classList.toggle("hidden", t !== "squad");
       $("#fantasy-ranking-pane").classList.toggle("hidden", t !== "ranking");
-      if (t === "ranking") { $("#fantasy-save-bar").classList.add("hidden"); renderFantasyRanking(); }
-      else enterFantasySquad();
+      $("#fantasy-rules-pane").classList.toggle("hidden", t !== "rules");
+      if (t === "squad") { enterFantasySquad(); return; }
+      $("#fantasy-save-bar").classList.add("hidden");
+      if (t === "ranking") renderFantasyRanking();
     }));
   $("#fantasy-save-btn").addEventListener("click", saveFantasy);
   $("#fp-close").addEventListener("click", closePicker);
@@ -1504,6 +1523,7 @@ async function renderFantasy() {
     $("#fantasy-deadline").textContent = "";
     return;
   }
+  if (!$("#fantasy-rules-pane").classList.contains("hidden")) return; // reglas: estáticas
   const rankingTab = !$("#fantasy-ranking-pane").classList.contains("hidden");
   if (rankingTab) return renderFantasyRanking();
   await enterFantasySquad();
@@ -1538,11 +1558,10 @@ async function enterFantasySquad() {
 function buildFantasyPhaseSelect() {
   const sel = $("#fantasy-phase");
   sel.innerHTML = "";
-  const now = new Date();
   for (const ph of FANTASY_PHASES) {
-    const dl = phaseDeadline(ph.n);
-    const closed = dl && dl <= now;
-    sel.append(el("option", { value: String(ph.n) }, ph.label + (closed ? " 🔒" : "")));
+    const st = phaseState(ph.n);
+    const tag = st === "closed" ? " 🔒" : st === "future" ? " ⏳" : "";
+    sel.append(el("option", { value: String(ph.n) }, ph.label + tag));
   }
   sel.value = String(fPhase);
   sel.onchange = async () => {
@@ -1559,7 +1578,7 @@ function buildFantasyFormationSelect() {
   sel.innerHTML = "";
   for (const f of FORMATIONS) sel.append(el("option", { value: f.name }, f.name));
   sel.value = fFormation.name;
-  sel.disabled = fLocked;
+  sel.disabled = fLocked || fNotOpen;
   sel.onchange = () => onFormationChange(sel.value);
 }
 
@@ -1587,8 +1606,9 @@ async function loadMySquad() {
 }
 
 function computeFantasyLock() {
-  const dl = phaseDeadline(fPhase);
-  fLocked = !!dl && dl <= new Date();
+  const st = phaseState(fPhase);
+  fLocked = st === "closed";   // ya arrancó: plantel fijo
+  fNotOpen = st === "future";  // todavía no se habilita
 }
 
 function onFormationChange(name) {
@@ -1622,12 +1642,16 @@ function renderPitch() {
             : "te quedan " + fmtM(FANTASY_BUDGET - used))),
   );
 
-  // Deadline / lock
+  // Deadline / estado de la fase
   const dl = phaseDeadline(fPhase);
-  $("#fantasy-deadline").textContent = dl
-    ? (fLocked ? "🔒 Esta fase ya cerró: el plantel quedó fijo."
-               : "⏰ Cierra al inicio de la fase: " + fmtDate(dl))
-    : "Esta fase todavía no tiene partidos cargados.";
+  const ot = phaseOpenTime(fPhase);
+  let dmsg;
+  if (!dl) dmsg = "Esta fase todavía no tiene partidos cargados.";
+  else if (fLocked) dmsg = "🔒 Esta fase ya cerró: el plantel quedó fijo.";
+  else if (fNotOpen) dmsg = "⏳ Esta fase se habilita el " + fmtDate(ot) +
+    ". Por ahora no se puede editar (se abre cuando se acerque).";
+  else dmsg = "⏰ Cierra al inicio de la fase: " + fmtDate(dl);
+  $("#fantasy-deadline").textContent = dmsg;
 
   // Cancha (delanteros arriba, arquero abajo)
   const pitch = $("#fantasy-pitch");
@@ -1654,7 +1678,7 @@ function filledSlot(id, pos) {
   slot.append(el("div", { className: "fp-name" }, shortName(p.name)));
   slot.append(el("div", { className: "fp-team muted" }, T(p.team)));
   slot.append(el("div", { className: "fp-price" }, fmtM(p.price)));
-  if (!fLocked) {
+  if (!fLocked && !fNotOpen) {
     const cap = el("button", { className: "fp-cap" + (isCap ? " on" : ""), title: "Capitán (x2)" }, "★");
     cap.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -1671,10 +1695,11 @@ function filledSlot(id, pos) {
 }
 
 function emptySlot(pos) {
-  const slot = el("button", { className: "fp-slot empty", disabled: fLocked },
+  const ro = fLocked || fNotOpen;
+  const slot = el("button", { className: "fp-slot empty", disabled: ro },
     el("span", { className: "fp-plus" }, "＋"),
     el("span", { className: "fp-emptylbl" }, POS_LABELS[pos]));
-  if (!fLocked) slot.addEventListener("click", () => openPicker(pos));
+  if (!ro) slot.addEventListener("click", () => openPicker(pos));
   return slot;
 }
 
@@ -1743,7 +1768,7 @@ function refreshFantasySaveBar() {
   const onFantasy = !$("#view-fantasy").classList.contains("hidden");
   const onSquad = !$("#fantasy-squad-pane").classList.contains("hidden");
   const changed = fantasySnap() !== fSavedSnap;
-  if (onFantasy && onSquad && !fLocked && changed) {
+  if (onFantasy && onSquad && !fLocked && !fNotOpen && changed) {
     const n = fSquadIds().length;
     $("#fantasy-save-info").textContent = `${n}/11 · ${fmtM(spentTotal())}/${FANTASY_BUDGET}M`;
     bar.classList.remove("hidden");

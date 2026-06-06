@@ -145,7 +145,9 @@ function priceFor(prices, name, position) {
 // Busca el id de una selección por nombre (prioriza equipo NACIONAL).
 async function findTeamId(name) {
   const target = normTeam(name);
-  const res = await apiGet(`teams?search=${encodeURIComponent(name)}`);
+  // El endpoint search solo admite alfanuméricos y espacios (ej. "Bosnia-Herzegovina").
+  const q = name.replace(/[^a-z0-9 ]/gi, " ").replace(/\s+/g, " ").trim();
+  const res = await apiGet(`teams?search=${encodeURIComponent(q)}`);
   return (
     res.find((r) => r.team.national && normTeam(r.team.name) === target) ||
     res.find((r) => r.team.national && normTeam(r.team.name).includes(target)) ||

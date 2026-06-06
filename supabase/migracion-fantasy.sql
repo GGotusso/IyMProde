@@ -110,8 +110,9 @@ grant select on public.fantasy_phase_deadline to anon, authenticated;
 
 -- =====================================================================
 --  SCORING
---  Gol ponderado por posición + asist 3 + 60'+ 2 + valla invicta 4 (DEF/ARQ)
+--  Gol ponderado por posición + asist 3 + valla invicta 4 (solo ARQ)
 --  - amarilla 1 - roja 3 - penal errado 2 + penal atajado 5 - gol en contra 2
+--  - ARQ: -3 por cada gol recibido
 -- =====================================================================
 
 -- Puntos de un futbolista en un partido (sin contar capitán).
@@ -123,14 +124,16 @@ select
   (
       ps.goals * (case fp.position when 'FWD' then 4 when 'MID' then 5 else 6 end)
     + ps.assists * 3
-    + (case when ps.minutes >= 60 then 2 else 0 end)
-    + (case when fp.position in ('GK','DEF') and ps.minutes >= 60 and ps.conceded = 0
+    -- valla invicta: solo ARQUERO que jugó 60'+ sin recibir goles
+    + (case when fp.position = 'GK' and ps.minutes >= 60 and ps.conceded = 0
             then 4 else 0 end)
     - ps.yellow * 1
     - ps.red * 3
     - ps.pen_missed * 2
     + ps.pen_saved * 5
     - ps.own_goals * 2
+    -- arquero: -3 por cada gol que le metan
+    - (case when fp.position = 'GK' then ps.conceded * 3 else 0 end)
   )::int as points
 from public.player_stats ps
 join public.fantasy_players fp on fp.api_player_id = ps.api_player_id;

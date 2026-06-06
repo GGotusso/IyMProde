@@ -30,17 +30,25 @@ const flagUrl = (team) => `https://flagcdn.com/w320/${FLAG[team]}.png`;
 
 const TEAMS = Object.keys(FLAG); // 12 faltantes + United States (re-armado)
 
+// Fotos reales de Wikipedia (scripts/fetch-photos.mjs). Si falta, cae a bandera.
+let photos = {};
+try { photos = JSON.parse(readFileSync(new URL("./data/fantasy-photos.json", import.meta.url), "utf8")); } catch { /* sin fotos aún */ }
+const photoFor = (team, name) => photos[`${team}|${name}`] || flagUrl(team);
+
 const squads = parseSquads();
 const sqlEsc = (s) => String(s).replace(/'/g, "''");
 
 const rows = [];
+let withPhoto = 0;
 for (const team of TEAMS) {
   const sq = squads[team] || [];
   if (sq.length !== 26) console.error(`⚠ ${team}: ${sq.length} jugadores (esperaba 26)`);
   for (const p of sq) {
-    rows.push(`  ('${sqlEsc(p.name)}', '${sqlEsc(team)}', '${p.pos}', ${priceFor(p.name, p.pos)}, '${flagUrl(team)}')`);
+    if (photos[`${team}|${p.name}`]) withPhoto++;
+    rows.push(`  ('${sqlEsc(p.name)}', '${sqlEsc(team)}', '${p.pos}', ${priceFor(p.name, p.pos)}, '${sqlEsc(photoFor(team, p.name))}')`);
   }
 }
+const teamList = TEAMS.map((t) => `'${sqlEsc(t)}'`).join(", ");
 
 const sql = `-- =====================================================================
 --  FANTASY · Poblar 12 equipos faltantes + corregir United States
@@ -50,14 +58,16 @@ const sql = `-- ================================================================
 --  1) Borra el plantel JUVENIL erróneo de USA (la API trajo el sub-20) y el
 --     "Meme" de Iraq (no está en la convocatoria FIFA).
 --  2) Inserta a mano los 12 equipos que faltaban + el plantel SENIOR de USA.
---     Foto = bandera del país (flagcdn). api_player_id queda NULL: estos
---     jugadores no tienen stats automáticas hasta cruzarlos con la API.
+--     Foto = foto real de Wikipedia (si se encontró) o bandera del país.
+--     api_player_id queda NULL: estos jugadores no tienen stats automáticas
+--     hasta cruzarlos con la API.
+--  Idempotente: borra primero los 13 equipos, así re-correrlo no duplica.
 -- =====================================================================
 
 begin;
 
--- 1) limpieza
-delete from public.fantasy_players where team = 'United States';
+-- 1) limpieza (los 13 equipos que (re)insertamos + el "Meme" de Iraq)
+delete from public.fantasy_players where team in (${teamList});
 delete from public.fantasy_players
  where team = 'Iraq' and name = 'Meme';
 
@@ -72,7 +82,7 @@ commit;
 `;
 
 writeFileSync(new URL("../supabase/migracion-fantasy-squads.sql", import.meta.url), sql);
-console.log(`OK · ${rows.length} jugadores en ${TEAMS.length} equipos → supabase/migracion-fantasy-squads.sql`);
+console.log(`OK · ${rows.length} jugadores en ${TEAMS.length} equipos (con foto real: ${withPhoto}) → supabase/migracion-fantasy-squads.sql`);
 
 // resumen de precios por equipo (top 3) para control
 for (const team of TEAMS) {

@@ -1128,6 +1128,8 @@ function bindAdminTabs() {
       $$("#admin-tabs .tab").forEach((x) => x.classList.toggle("active", x === b));
       $("#admin-players").classList.toggle("hidden", t !== "players");
       $("#admin-matches").classList.toggle("hidden", t !== "matches");
+      $("#admin-fantasy").classList.toggle("hidden", t !== "fantasy");
+      if (t === "fantasy") renderAdminFantasy();
     }));
 }
 
@@ -1233,6 +1235,135 @@ async function adminAction(btn, rpc, args, okMsg, reload = true) {
   toast("✅ " + okMsg, "ok");
   if (reload) await renderAdminPlayers();
   else { btn.disabled = false; btn.textContent = old; }
+}
+
+// =====================================================================
+//  ADMIN · Fantasy (catálogo de jugadores: alta / baja / precio / foto)
+// =====================================================================
+const FANTASY_TEAMS = Object.keys(TEAM_ES).filter((t) => t !== "Por definir").sort();
+let afTeam = "";  // equipo elegido en el filtro del admin
+
+function adminFantasyErr(msg = "") {
+  if (msg.includes("NO_AUTORIZADO")) return "No tenés permisos de admin.";
+  if (msg.includes("NOMBRE_VACIO")) return "El nombre no puede estar vacío.";
+  if (msg.includes("EQUIPO_VACIO")) return "Elegí un equipo.";
+  if (msg.includes("POSICION")) return "Posición inválida.";
+  if (msg.includes("PRECIO")) return "El precio debe ser mayor a 0.";
+  if (msg.includes("JUGADOR_INEXISTENTE")) return "Ese jugador ya no existe.";
+  if (msg.includes("SESION_INVALIDA")) return "Tu sesión expiró, volvé a entrar.";
+  return "Error: " + msg;
+}
+
+// Invalida la caché del catálogo del front para que el fantasy se recargue.
+function invalidateFantasyCache() { fantasyAll = null; }
+
+function renderAdminFantasy() {
+  const wrap = $("#admin-fantasy");
+  wrap.innerHTML = "";
+  wrap.append(adminFantasyAddForm());
+
+  const controls = el("div", { className: "af-controls" });
+  const teamSel = el("select");
+  teamSel.append(el("option", { value: "" }, "— Elegí un equipo —"));
+  for (const t of FANTASY_TEAMS) teamSel.append(el("option", { value: t }, T(t)));
+  teamSel.value = afTeam;
+  teamSel.onchange = () => { afTeam = teamSel.value; renderAdminFantasyList(); };
+  controls.append(el("label", {}, "Equipo ", teamSel));
+  wrap.append(controls);
+
+  wrap.append(el("div", { id: "af-list", className: "af-list" }));
+  renderAdminFantasyList();
+}
+
+async function renderAdminFantasyList() {
+  const list = $("#af-list");
+  if (!list) return;
+  if (!afTeam) {
+    list.innerHTML = `<p class="muted small">Elegí un equipo para ver y editar su plantel.</p>`;
+    return;
+  }
+  list.innerHTML = `<div class="spinner">Cargando…</div>`;
+  const { data, error } = await sb.from("fantasy_players")
+    .select("id,name,team,position,price,photo").eq("team", afTeam)
+    .order("price", { ascending: false });
+  if (error) { list.innerHTML = `<p class="error">${error.message}</p>`; return; }
+  list.innerHTML = "";
+  list.append(el("p", { className: "muted small" }, `${data.length} jugadores en ${T(afTeam)}.`));
+  for (const p of data) list.append(adminFantasyRow(p));
+}
+
+function adminFantasyAddForm() {
+  const box = el("div", { className: "af-add" });
+  const name = el("input", { type: "text", placeholder: "Nombre" });
+  const team = el("select");
+  for (const t of FANTASY_TEAMS) team.append(el("option", { value: t }, T(t)));
+  if (afTeam) team.value = afTeam;
+  const pos = el("select");
+  for (const k of ["GK", "DEF", "MID", "FWD"]) pos.append(el("option", { value: k }, k));
+  const price = el("input", { type: "number", step: "0.5", min: "0.5", value: "4.5" });
+  const photo = el("input", { type: "text", placeholder: "URL foto (opcional)" });
+  const add = el("button", { className: "primary" }, "Agregar");
+  add.onclick = async () => {
+    if (!name.value.trim()) { toast("Poné un nombre.", "err"); return; }
+    add.disabled = true;
+    const { error } = await sb.rpc("fantasy_add_player", {
+      p_token: session.token, p_name: name.value.trim(), p_team: team.value,
+      p_position: pos.value, p_price: +price.value, p_photo: photo.value.trim(),
+    });
+    add.disabled = false;
+    if (error) { toast(adminFantasyErr(error.message), "err"); return; }
+    toast("✅ Jugador agregado.", "ok");
+    name.value = ""; photo.value = "";
+    afTeam = team.value;
+    invalidateFantasyCache();
+    renderAdminFantasy();
+  };
+  box.append(
+    el("h3", { className: "block-title" }, "➕ Agregar jugador"),
+    el("div", { className: "af-addrow" }, name, team, pos, price, photo, add));
+  return box;
+}
+
+function adminFantasyRow(p) {
+  const row = el("div", { className: "af-row" });
+  const photo = p.photo
+    ? el("img", { className: "af-photo", src: p.photo, alt: "", loading: "lazy" })
+    : el("div", { className: "af-photo ph" }, "⚽");
+  const name = el("input", { type: "text", value: p.name, className: "af-name" });
+  const pos = el("select", { className: "af-pos" });
+  for (const k of ["GK", "DEF", "MID", "FWD"]) {
+    const o = el("option", { value: k }, k);
+    if (p.position === k) o.selected = true;
+    pos.append(o);
+  }
+  const price = el("input", { type: "number", step: "0.5", min: "0.5", value: p.price, className: "af-price" });
+  const photoUrl = el("input", { type: "text", value: p.photo || "", placeholder: "URL foto", className: "af-photourl" });
+  const save = el("button", { className: "primary af-save" }, "Guardar");
+  save.onclick = async () => {
+    save.disabled = true; save.textContent = "…";
+    const { error } = await sb.rpc("fantasy_update_player", {
+      p_token: session.token, p_footballer: p.id, p_name: name.value.trim(),
+      p_team: afTeam, p_position: pos.value, p_price: +price.value, p_photo: photoUrl.value.trim(),
+    });
+    save.disabled = false; save.textContent = "Guardar";
+    if (error) { toast(adminFantasyErr(error.message), "err"); return; }
+    if (photoUrl.value.trim() && photo.tagName === "IMG") photo.src = photoUrl.value.trim();
+    invalidateFantasyCache();
+    toast("✅ Guardado.", "ok");
+  };
+  const del = el("button", { className: "ghost danger af-del", title: "Borrar" }, "🗑");
+  del.onclick = async () => {
+    if (!confirm(`¿Borrar a ${p.name}? Se quita también de los planteles que lo tengan.`)) return;
+    const { error } = await sb.rpc("fantasy_delete_player", {
+      p_token: session.token, p_footballer: p.id,
+    });
+    if (error) { toast(adminFantasyErr(error.message), "err"); return; }
+    invalidateFantasyCache();
+    toast(`✅ ${p.name} eliminado.`, "ok");
+    row.remove();
+  };
+  row.append(photo, name, pos, price, photoUrl, save, del);
+  return row;
 }
 
 function adminRow(m) {

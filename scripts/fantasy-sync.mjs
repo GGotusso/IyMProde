@@ -319,7 +319,15 @@ export async function syncFantasy(env) {
       "matches?select=id,stage,home_team,away_team,kickoff,home_goals,away_goals," +
         "apifootball_fixture_id,stats_fetched"
     );
-    await seedPlayers(env, matches);
+    // El catálogo (fantasy_players) ya está poblado a mano desde el SquadList
+    // oficial FIFA. Re-sembrar desde API-Football volvería a meter planteles
+    // incorrectos (p.ej. el sub-20 de USA), así que NO se siembra salvo que se
+    // pida explícitamente con FANTASY_SEED=1. Las stats de partidos sí se bajan.
+    if (process.env.FANTASY_SEED === "1") {
+      await seedPlayers(env, matches);
+    } else {
+      console.log("[fantasy] Sembrado de catálogo DESACTIVADO (FANTASY_SEED!=1). Solo stats.");
+    }
     await mapAndStats(env, matches);
     console.log("[fantasy] Listo ✅");
   } catch (e) {

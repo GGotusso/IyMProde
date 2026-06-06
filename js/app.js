@@ -1573,6 +1573,7 @@ function adminRow(m) {
 //  real (lo carga el sync desde API-Football → vistas SQL).
 // =====================================================================
 const FANTASY_BUDGET = 100;
+const MAX_PER_COUNTRY = 2;   // tope de jugadores por país en el plantel
 const FORMATIONS = [
   { name: "4-4-2", DEF: 4, MID: 4, FWD: 2 },
   { name: "4-3-3", DEF: 4, MID: 3, FWD: 3 },
@@ -1615,6 +1616,9 @@ const normName = (s) =>
 const fSquadIds = () => [...fSquad.GK, ...fSquad.DEF, ...fSquad.MID, ...fSquad.FWD];
 const spentTotal = () =>
   fSquadIds().reduce((s, id) => s + Number(fantasyById.get(id)?.price || 0), 0);
+// cuántos jugadores del plantel son de ese país (para el tope de 2 por país)
+const teamCount = (team) =>
+  fSquadIds().filter((id) => fantasyById.get(id)?.team === team).length;
 function fantasySnap() {
   return fSquadIds().slice().sort().join(",") + "|" + (fCaptain || "");
 }
@@ -1891,15 +1895,17 @@ function renderPickerList(q) {
     return;
   }
   for (const p of items) {
-    const aff = Number(p.price) <= remain + 1e-9;
-    const row = el("button", { className: "fp-item" + (aff ? "" : " disabled"), disabled: !aff });
+    const countryFull = teamCount(p.team) >= MAX_PER_COUNTRY;
+    const ok = !countryFull && Number(p.price) <= remain + 1e-9;
+    const row = el("button", { className: "fp-item" + (ok ? "" : " disabled"), disabled: !ok });
     row.append(p.photo
       ? el("img", { className: "fp-photo sm", src: p.photo, alt: "", loading: "lazy" })
       : el("div", { className: "fp-photo sm ph" }, "⚽"));
     row.append(el("div", { className: "fp-iname" },
-      el("b", {}, p.name), el("div", { className: "muted small" }, T(p.team))));
+      el("b", {}, p.name),
+      el("div", { className: "muted small" }, T(p.team) + (countryFull ? " · máx 2" : ""))));
     row.append(el("span", { className: "fp-price" }, fmtM(p.price)));
-    if (aff) row.addEventListener("click", () => addPlayer(p));
+    if (ok) row.addEventListener("click", () => addPlayer(p));
     list.append(row);
   }
 }
@@ -1908,6 +1914,10 @@ function addPlayer(p) {
   const max = p.position === "GK" ? 1 : fFormation[p.position];
   if (fSquad[p.position].length >= max) {
     toast(`Ya completaste los ${POS_LABELS[p.position].toLowerCase()}s de esta formación.`, "err");
+    return;
+  }
+  if (teamCount(p.team) >= MAX_PER_COUNTRY) {
+    toast(`Máximo ${MAX_PER_COUNTRY} jugadores de ${T(p.team)}.`, "err");
     return;
   }
   if (spentTotal() + Number(p.price) > FANTASY_BUDGET) {
@@ -1962,6 +1972,7 @@ function fantasyErr(msg = "") {
   if (msg.includes("PLANTEL_INCOMPLETO")) return "El plantel debe tener 11 jugadores.";
   if (msg.includes("CAPITAN")) return "Elegí un capitán válido.";
   if (msg.includes("PICKS")) return "Hay jugadores inválidos en el plantel.";
+  if (msg.includes("LIMITE_PAIS")) return `Máximo ${MAX_PER_COUNTRY} jugadores por país.`;
   if (msg.includes("SESION_INVALIDA")) return "Tu sesión expiró, volvé a entrar.";
   return "Error: " + msg;
 }

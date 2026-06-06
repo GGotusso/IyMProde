@@ -314,11 +314,16 @@ footer { text-align: center; padding: 1rem; color: var(--muted); font-size: .8re
   .score-box input { width: 2.6rem; }
   .user-box { margin-left: auto; }
 
-  /* el selector de sección ocupa su propia fila, centrado */
-  .section-switch { order: 3; flex: 1 0 100%; margin-left: 0; justify-content: center; }
-  .sec-btn { flex: 1; justify-content: center; }
+  /* Selector de sección Prode/Fantasy: barra fija abajo, SIEMPRE visible
+     (sobre la nav inferior). Así Fantasy se alcanza siempre desde el celular. */
+  .section-switch {
+    position: fixed; left: .5rem; right: .5rem; margin: 0; z-index: 32;
+    bottom: calc(4.6rem + env(safe-area-inset-bottom, 0px));
+    justify-content: center; box-shadow: 0 4px 16px rgba(0,0,0,.35);
+  }
+  .sec-btn { flex: 1; justify-content: center; padding: .55rem 1rem; }
 
-  /* navegación inferior tipo app */
+  /* navegación inferior tipo app (sub-nav de la sección Prode) */
   #nav {
     position: fixed; left: 0; right: 0; bottom: 0; width: 100%; margin: 0;
     display: flex; justify-content: space-around; gap: 0;
@@ -334,16 +339,22 @@ footer { text-align: center; padding: 1rem; color: var(--muted); font-size: .8re
   .nav-btn .nl { line-height: 1; }
   .nav-badge { position: absolute; margin-left: 0; transform: translate(.9rem, -.7rem); }
   .nav-btn { position: relative; }
-  body.in-app { padding-bottom: 4.4rem; }
+  /* deja lugar para la nav (~4.4rem) + el selector de sección (~3rem) */
+  body.in-app { padding-bottom: calc(8rem + env(safe-area-inset-bottom, 0px)); }
 
-  /* en Fantasy no hay sub-nav: ocultamos la barra inferior y recuperamos el espacio */
+  /* en Fantasy no hay sub-nav: se oculta la nav y el selector baja al fondo */
   body.sec-fantasy #nav { display: none; }
-  body.in-app.sec-fantasy { padding-bottom: 1rem; }
-  body.sec-fantasy .save-bar { bottom: 1rem; }
+  body.sec-fantasy .section-switch { bottom: calc(.6rem + env(safe-area-inset-bottom, 0px)); }
+  body.in-app.sec-fantasy { padding-bottom: calc(4.2rem + env(safe-area-inset-bottom, 0px)); }
+  body.sec-fantasy .save-bar { bottom: calc(4.2rem + env(safe-area-inset-bottom, 0px)); }
 
-  /* la barra de guardado se acomoda encima de la nav inferior */
+  /* las pestañas (admin/fantasy) no deben desbordar: que envuelvan */
+  .tabs { display: flex; flex-wrap: wrap; }
+
+  /* la barra de guardado va encima del selector de sección + la nav */
   .save-bar {
-    left: .6rem; right: .6rem; transform: none; bottom: 4.8rem;
+    left: .6rem; right: .6rem; transform: none;
+    bottom: calc(8.2rem + env(safe-area-inset-bottom, 0px));
     border-radius: 14px; justify-content: space-between;
   }
 }

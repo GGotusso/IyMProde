@@ -237,6 +237,15 @@ begin
     raise exception 'FORMACION_INVALIDA';
   end if;
 
+  -- Máximo 2 jugadores por país.
+  if exists (
+    select 1 from fantasy_players
+    where id in (select x::uuid from jsonb_array_elements_text(p_picks) x)
+    group by team having count(*) > 2
+  ) then
+    raise exception 'LIMITE_PAIS';
+  end if;
+
   if p_captain is null
      or not exists (select 1 from jsonb_array_elements_text(p_picks) x
                     where x::uuid = p_captain) then

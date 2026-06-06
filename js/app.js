@@ -1405,19 +1405,83 @@ async function renderFpointsBody() {
   const body = $("#afp-body");
   if (!body) return;
   if (!afpMatch) { body.innerHTML = `<p class="muted small">Elegí un partido para cargar puntos.</p>`; return; }
+  const m = matches.find((x) => x.id === afpMatch);
   body.innerHTML = `<div class="spinner">Cargando…</div>`;
-  const { data, error } = await sb.from("fantasy_manual_points")
-    .select("footballer_id,points,fantasy_players(name,team,position)")
-    .eq("match_id", afpMatch);
-  if (error) { body.innerHTML = `<p class="error">${error.message}</p>`; return; }
-  body.innerHTML = "";
-  body.append(afpAddSection());
 
-  const list = el("div", { className: "af-list", style: "margin-top:1rem" });
-  list.append(el("h3", { className: "block-title" }, "Puntos cargados"));
-  if (!data.length) list.append(el("p", { className: "muted small" }, "Todavía no cargaste puntos para este partido."));
-  for (const r of data) list.append(afpRow(r));
+  // Puntos manuales ya cargados para este partido.
+  const { data: mps, error: e1 } = await sb.from("fantasy_manual_points")
+    .select("footballer_id,points").eq("match_id", afpMatch);
+  if (e1) { body.innerHTML = `<p class="error">${e1.message}</p>`; return; }
+  const ptMap = new Map((mps || []).map((r) => [r.footballer_id, r.points]));
+
+  // Planteles de los dos equipos del partido (solo ellos pueden sumar).
+  const teams = [m?.home_team, m?.away_team].filter((t) => t && t !== "Por definir");
+  let players = [];
+  if (teams.length) {
+    const { data, error } = await sb.from("fantasy_players")
+      .select("id,name,team,position").in("team", teams)
+      .order("team", { ascending: true }).order("price", { ascending: false });
+    if (!error) players = data || [];
+  }
+
+  body.innerHTML = "";
+  if (!players.length) {
+    body.append(el("p", { className: "muted small" },
+      teams.length ? "No hay jugadores cargados para estos equipos."
+        : "Los equipos de este partido todavía no están definidos. Usá el buscador."));
+    body.append(afpAddSection());
+    return;
+  }
+
+  body.append(el("p", { className: "muted small" },
+    "Poné los puntos de cada jugador que participó y tocá «Guardar puntos». " +
+    "Dejá en blanco a los que no sumaron (o borrá el valor para quitarlos)."));
+
+  const inputs = [];
+  const list = el("div", { className: "af-list" });
+  let curTeam = null;
+  for (const p of players) {
+    if (p.team !== curTeam) {
+      curTeam = p.team;
+      list.append(el("h3", { className: "block-title" }, T(curTeam)));
+    }
+    const orig = ptMap.has(p.id) ? String(ptMap.get(p.id)) : "";
+    const inp = el("input", { type: "number", step: "1", className: "afp-pts", value: orig });
+    inputs.push({ id: p.id, inp, orig });
+    const row = el("div", { className: "af-row" });
+    row.append(el("span", { className: "af-name" }, `${p.name} · ${p.position}`), inp);
+    list.append(row);
+  }
   body.append(list);
+
+  const saveAll = el("button", { className: "primary", style: "margin-top:1rem" }, "Guardar puntos");
+  saveAll.onclick = () => afpSaveAll(inputs, saveAll);
+  body.append(saveAll);
+
+  // Buscador opcional (por si hace falta un jugador de otro equipo).
+  body.append(afpAddSection());
+}
+
+async function afpSaveAll(inputs, btn) {
+  const changed = inputs.filter((x) => x.inp.value.trim() !== x.orig.trim());
+  if (!changed.length) { toast("No hay cambios para guardar.", "ok"); return; }
+  btn.disabled = true; btn.textContent = "Guardando…";
+  let ok = 0, fail = 0;
+  for (const x of changed) {
+    const v = x.inp.value.trim();
+    const res = v === ""
+      ? await sb.rpc("fantasy_del_manual_points",
+        { p_token: session.token, p_match_id: afpMatch, p_footballer: x.id })
+      : await sb.rpc("fantasy_set_manual_points",
+        { p_token: session.token, p_match_id: afpMatch, p_footballer: x.id, p_points: Math.round(+v) || 0 });
+    if (res.error) {
+      if (res.error.message.includes("SESION_INVALIDA")) return logout();
+      fail++;
+    } else ok++;
+  }
+  btn.disabled = false; btn.textContent = "Guardar puntos";
+  toast(`✅ Guardado: ${ok}${fail ? ` · errores: ${fail}` : ""}.`, fail ? "err" : "ok");
+  renderFpointsBody();
 }
 
 function afpAddSection() {
@@ -1457,26 +1521,6 @@ async function afpSave(footballerId, points, label = "") {
   if (error) { toast(adminFantasyErr(error.message), "err"); return; }
   toast(`✅ Puntos guardados${label ? " · " + label : ""}.`, "ok");
   renderFpointsBody();
-}
-
-function afpRow(r) {
-  const fp = r.fantasy_players || {};
-  const row = el("div", { className: "af-row" });
-  const name = el("span", { className: "af-name" },
-    `${fp.name || "?"} · ${T(fp.team || "")} · ${fp.position || ""}`);
-  const pts = el("input", { type: "number", step: "1", value: r.points, className: "afp-pts" });
-  const save = el("button", { className: "primary af-save" }, "Guardar");
-  save.onclick = () => afpSave(r.footballer_id, +pts.value, fp.name);
-  const del = el("button", { className: "ghost danger af-del", title: "Borrar" }, "🗑");
-  del.onclick = async () => {
-    const { error } = await sb.rpc("fantasy_del_manual_points", {
-      p_token: session.token, p_match_id: afpMatch, p_footballer: r.footballer_id,
-    });
-    if (error) { toast(adminFantasyErr(error.message), "err"); return; }
-    toast("✅ Borrado.", "ok"); renderFpointsBody();
-  };
-  row.append(name, pts, save, del);
-  return row;
 }
 
 function adminRow(m) {

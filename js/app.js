@@ -260,9 +260,27 @@ async function loadMyPredictions() {
 // =====================================================================
 //  NAVEGACIÓN ENTRE VISTAS
 // =====================================================================
+// A qué sección pertenece cada vista (Prode = pronósticos/ranking del Mundial,
+// Fantasy = plantel propio). El sub-nav muestra solo las vistas de la sección activa.
+const VIEW_SECTION = {
+  predictions: "prode", ranking: "prode", especiales: "prode",
+  mundial: "prode", reglas: "prode", admin: "prode",
+  fantasy: "fantasy",
+};
+// Última vista de Prode visitada, para volver a ella al cambiar de sección.
+let lastProdeView = "predictions";
+
 function bindNav() {
   $$(".nav-btn").forEach((b) =>
     b.addEventListener("click", () => showView(b.dataset.view)));
+  $$(".sec-btn").forEach((b) =>
+    b.addEventListener("click", () => showSection(b.dataset.section)));
+}
+
+// Cambia entre secciones. Fantasy abre directo su vista (tiene sus propios tabs
+// internos); Prode vuelve a la última vista que el usuario tenía abierta.
+function showSection(section) {
+  showView(section === "fantasy" ? "fantasy" : lastProdeView);
 }
 
 function showView(view) {
@@ -285,6 +303,15 @@ function showView(view) {
   $("#view-" + view).classList.remove("hidden");
   $$(".nav-btn").forEach((b) =>
     b.classList.toggle("active", b.dataset.view === view));
+
+  // Sincroniza el selector de sección y muestra solo el sub-nav de esa sección.
+  const section = VIEW_SECTION[view] || "prode";
+  if (section === "prode") lastProdeView = view;
+  document.body.classList.toggle("sec-fantasy", section === "fantasy");
+  $$(".sec-btn").forEach((b) =>
+    b.classList.toggle("active", b.dataset.section === section));
+  $$(".nav-btn").forEach((b) =>
+    b.classList.toggle("sec-hide", (VIEW_SECTION[b.dataset.view] || "prode") !== section));
   if (view !== "predictions") $("#save-bar").classList.add("hidden");
   if (view !== "fantasy") $("#fantasy-save-bar")?.classList.add("hidden");
 

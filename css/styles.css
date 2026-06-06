@@ -51,7 +51,25 @@ h1, h2, h3, .brand { font-family: var(--font-display); letter-spacing: -.02em; }
 }
 .brand { font-weight: 800; font-size: 1.15rem; }
 .brand span { color: var(--accent); }
-#nav { display: flex; gap: .35rem; margin-left: auto; }
+
+/* Selector de sección: Prode (pronósticos + Mundial) vs Fantasy */
+.section-switch {
+  display: inline-flex; gap: .2rem; margin-left: auto;
+  background: var(--bg2); padding: .25rem; border-radius: 12px;
+  border: 1px solid var(--line);
+}
+.sec-btn {
+  display: inline-flex; align-items: center; gap: .4rem;
+  background: transparent; color: var(--muted); border: 0;
+  padding: .45rem 1rem; border-radius: 9px; cursor: pointer;
+  font-weight: 700; font-size: .95rem;
+}
+.sec-btn .si { font-size: 1.05rem; line-height: 1; }
+.sec-btn:hover { color: var(--txt); }
+.sec-btn.active { color: var(--txt); background: var(--card); box-shadow: 0 1px 5px rgba(0,0,0,.28); }
+
+#nav { display: flex; gap: .35rem; }
+.nav-btn.sec-hide { display: none; }
 .nav-btn {
   display: inline-flex; align-items: center; gap: .4rem;
   background: transparent; color: var(--muted); border: 0;
@@ -296,6 +314,10 @@ footer { text-align: center; padding: 1rem; color: var(--muted); font-size: .8re
   .score-box input { width: 2.6rem; }
   .user-box { margin-left: auto; }
 
+  /* el selector de sección ocupa su propia fila, centrado */
+  .section-switch { order: 3; flex: 1 0 100%; margin-left: 0; justify-content: center; }
+  .sec-btn { flex: 1; justify-content: center; }
+
   /* navegación inferior tipo app */
   #nav {
     position: fixed; left: 0; right: 0; bottom: 0; width: 100%; margin: 0;
@@ -313,6 +335,11 @@ footer { text-align: center; padding: 1rem; color: var(--muted); font-size: .8re
   .nav-badge { position: absolute; margin-left: 0; transform: translate(.9rem, -.7rem); }
   .nav-btn { position: relative; }
   body.in-app { padding-bottom: 4.4rem; }
+
+  /* en Fantasy no hay sub-nav: ocultamos la barra inferior y recuperamos el espacio */
+  body.sec-fantasy #nav { display: none; }
+  body.in-app.sec-fantasy { padding-bottom: 1rem; }
+  body.sec-fantasy .save-bar { bottom: 1rem; }
 
   /* la barra de guardado se acomoda encima de la nav inferior */
   .save-bar {

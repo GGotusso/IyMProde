@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./css/styles.css?v=13" />
+  <link rel="stylesheet" href="./css/styles.css?v=14" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%BD%3C/text%3E%3C/svg%3E" />
 </head>
 <body>
@@ -25,14 +25,17 @@
 
   <header id="topbar" class="hidden">
     <div class="brand">⚽ Prode Mundial <span>2026</span></div>
+    <div class="section-switch" id="section-switch">
+      <button class="sec-btn active" data-section="prode"><span class="si">⚽</span><span class="sl">Prode</span></button>
+      <button class="sec-btn" data-section="fantasy"><span class="si">🃏</span><span class="sl">Fantasy</span></button>
+    </div>
     <nav id="nav">
-      <button data-view="predictions" class="nav-btn active"><span class="ni">📝</span><span class="nl">Pronósticos</span><span id="pending-badge" class="nav-badge hidden"></span></button>
-      <button data-view="ranking" class="nav-btn"><span class="ni">🏆</span><span class="nl">Ranking</span></button>
-      <button data-view="especiales" class="nav-btn"><span class="ni">⭐</span><span class="nl">Especiales</span></button>
-      <button data-view="fantasy" class="nav-btn"><span class="ni">🃏</span><span class="nl">Fantasy</span></button>
-      <button data-view="mundial" class="nav-btn"><span class="ni">🌎</span><span class="nl">Mundial</span></button>
-      <button data-view="reglas" class="nav-btn"><span class="ni">📋</span><span class="nl">Reglas</span></button>
-      <button data-view="admin" class="nav-btn hidden" id="nav-admin"><span class="ni">⚙️</span><span class="nl">Admin</span></button>
+      <button data-view="predictions" data-section="prode" class="nav-btn active"><span class="ni">📝</span><span class="nl">Pronósticos</span><span id="pending-badge" class="nav-badge hidden"></span></button>
+      <button data-view="ranking" data-section="prode" class="nav-btn"><span class="ni">🏆</span><span class="nl">Ranking</span></button>
+      <button data-view="especiales" data-section="prode" class="nav-btn"><span class="ni">⭐</span><span class="nl">Especiales</span></button>
+      <button data-view="mundial" data-section="prode" class="nav-btn"><span class="ni">🌎</span><span class="nl">Mundial</span></button>
+      <button data-view="reglas" data-section="prode" class="nav-btn"><span class="ni">📋</span><span class="nl">Reglas</span></button>
+      <button data-view="admin" data-section="prode" class="nav-btn hidden" id="nav-admin"><span class="ni">⚙️</span><span class="nl">Admin</span></button>
     </nav>
     <div class="user-box">
       <span id="user-name"></span>
@@ -280,7 +283,7 @@
 
   <div id="toasts" class="toasts"></div>
 
-  <script type="module" src="./js/app.js?v=11"></script>
+  <script type="module" src="./js/app.js?v=12"></script>
   <script src="./js/tanke.js?v=4" defer></script>
 </body>
 </html>

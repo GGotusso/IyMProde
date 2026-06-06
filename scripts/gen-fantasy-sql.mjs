@@ -5,6 +5,7 @@
 // Precio = misma lógica del seed (fantasy-prices.json). Foto = bandera del país.
 import { readFileSync, writeFileSync } from "node:fs";
 import { parseSquads } from "./parse-squads.mjs";
+import { balance } from "./reprice.mjs";
 
 // --- precios (réplica de fantasy-sync.mjs) ---
 const norm = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -18,7 +19,8 @@ const pj = JSON.parse(readFileSync(new URL("./data/fantasy-prices.json", import.
 const byFull = new Map(), byInitial = new Map();
 for (const p of pj.players || []) { byFull.set(norm(p.name), p.price); byInitial.set(pkey(p.name), p.price); }
 const defaults = pj.defaults || { GK: 4.5, DEF: 4.5, MID: 5, FWD: 5.5 };
-const priceFor = (name, pos) => byFull.get(norm(name)) ?? byInitial.get(pkey(name)) ?? defaults[pos];
+// precio base del JSON + curva de balance global (ver reprice.mjs)
+const priceFor = (name, pos) => balance(byFull.get(norm(name)) ?? byInitial.get(pkey(name)) ?? defaults[pos]);
 
 // --- foto = bandera (flagcdn, ISO-2) ---
 const FLAG = {

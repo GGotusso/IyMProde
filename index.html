@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./css/styles.css?v=12" />
+  <link rel="stylesheet" href="./css/styles.css?v=13" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%BD%3C/text%3E%3C/svg%3E" />
 </head>
 <body>
@@ -29,6 +29,7 @@
       <button data-view="predictions" class="nav-btn active"><span class="ni">📝</span><span class="nl">Pronósticos</span><span id="pending-badge" class="nav-badge hidden"></span></button>
       <button data-view="ranking" class="nav-btn"><span class="ni">🏆</span><span class="nl">Ranking</span></button>
       <button data-view="especiales" class="nav-btn"><span class="ni">⭐</span><span class="nl">Especiales</span></button>
+      <button data-view="fantasy" class="nav-btn"><span class="ni">🃏</span><span class="nl">Fantasy</span></button>
       <button data-view="mundial" class="nav-btn"><span class="ni">🌎</span><span class="nl">Mundial</span></button>
       <button data-view="reglas" class="nav-btn"><span class="ni">📋</span><span class="nl">Reglas</span></button>
       <button data-view="admin" class="nav-btn hidden" id="nav-admin"><span class="ni">⚙️</span><span class="nl">Admin</span></button>
@@ -124,6 +125,52 @@
       <p class="muted" id="special-deadline"></p>
       <p id="special-status" class="status hidden"></p>
       <div id="specials-form" class="specials"></div>
+    </section>
+
+    <!-- =================== FANTASY =================== -->
+    <section id="view-fantasy" class="view hidden">
+      <div class="view-head">
+        <h2>🃏 Fantasy · Mi Plantel Mundial</h2>
+        <div class="tabs" id="fantasy-tabs">
+          <button class="tab active" data-ftab="squad">Mi plantel</button>
+          <button class="tab" data-ftab="ranking">Ranking</button>
+        </div>
+      </div>
+
+      <div id="fantasy-squad-pane">
+        <div class="fantasy-controls">
+          <label>Fase <select id="fantasy-phase"></select></label>
+          <label>Formación <select id="fantasy-formation"></select></label>
+        </div>
+        <p id="fantasy-deadline" class="muted small"></p>
+        <div id="fantasy-budget" class="fantasy-budget"></div>
+        <div id="fantasy-pitch" class="fantasy-pitch"></div>
+        <div id="fantasy-save-bar" class="save-bar hidden">
+          <span id="fantasy-save-info"></span>
+          <button id="fantasy-save-btn" class="primary">Guardar plantel</button>
+        </div>
+      </div>
+
+      <div id="fantasy-ranking-pane" class="hidden">
+        <div id="fantasy-ranking-table"></div>
+        <p class="muted small" style="margin-top:.8rem">
+          <b>Puntos:</b> gol (DEL 4 / MED 5 / DEF·ARQ 6) · asistencia 3 · jugó 60'+ 2 ·
+          valla invicta DEF·ARQ 4 · amarilla −1 · roja −3 · penal errado −2 · penal atajado +5 ·
+          gol en contra −2. <b>Capitán ×2.</b>
+        </p>
+      </div>
+
+      <!-- Buscador de jugadores (overlay) -->
+      <div id="fantasy-picker" class="fantasy-picker hidden">
+        <div class="fp-box">
+          <div class="fp-head">
+            <span id="fp-title"></span>
+            <button id="fp-close" class="ghost">✕</button>
+          </div>
+          <input id="fp-search" type="text" placeholder="Buscar jugador o selección…" autocomplete="off" />
+          <div id="fp-list" class="fp-list"></div>
+        </div>
+      </div>
     </section>
 
     <!-- =================== MUNDIAL =================== -->
@@ -233,7 +280,7 @@
 
   <div id="toasts" class="toasts"></div>
 
-  <script type="module" src="./js/app.js?v=10"></script>
+  <script type="module" src="./js/app.js?v=11"></script>
   <script src="./js/tanke.js?v=4" defer></script>
 </body>
 </html>

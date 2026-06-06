@@ -127,6 +127,7 @@ async function init() {
   bindNav();
   bindRankTabs();
   bindAdminTabs();
+  bindFantasy();
   $("#logout-btn").addEventListener("click", logout);
   $("#save-btn").addEventListener("click", savePredictions);
   $("#save-bar-btn").addEventListener("click", savePredictions);
@@ -273,15 +274,24 @@ function showView(view) {
     refreshSaveBar();
   }
 
+  // Lo mismo para el plantel de Fantasy.
+  const leavingFantasy = !$("#view-fantasy").classList.contains("hidden");
+  if (leavingFantasy && view !== "fantasy" && fantasyEntered && !fLocked
+      && fantasySnap() !== fSavedSnap) {
+    if (!confirm("Tenés cambios sin guardar en tu plantel de Fantasy.\n¿Salir igual y descartarlos?")) return;
+  }
+
   $$(".view").forEach((v) => v.classList.add("hidden"));
   $("#view-" + view).classList.remove("hidden");
   $$(".nav-btn").forEach((b) =>
     b.classList.toggle("active", b.dataset.view === view));
   if (view !== "predictions") $("#save-bar").classList.add("hidden");
+  if (view !== "fantasy") $("#fantasy-save-bar")?.classList.add("hidden");
 
   if (view === "predictions") renderPredictions();
   if (view === "ranking") renderRanking();
   if (view === "especiales") renderEspeciales();
+  if (view === "fantasy") renderFantasy();
   if (view === "mundial") renderMundial();
   if (view === "admin") renderAdmin();
 }
@@ -1239,4 +1249,406 @@ function adminRow(m) {
   meta.append(el("span", {}, `${m.id} · ${fmtDate(m.kickoff)}`), saveBtn);
   row.append(meta);
   return row;
+}
+
+// =====================================================================
+//  FANTASY · "Mi Plantel Mundial" (minigame)
+//  Presupuesto fijo (100M), once por formación, capitán x2, plantel
+//  rearmable libremente en cada fase del Mundial. Puntaje por rendimiento
+//  real (lo carga el sync desde API-Football → vistas SQL).
+// =====================================================================
+const FANTASY_BUDGET = 100;
+const FORMATIONS = [
+  { name: "4-4-2", DEF: 4, MID: 4, FWD: 2 },
+  { name: "4-3-3", DEF: 4, MID: 3, FWD: 3 },
+  { name: "4-5-1", DEF: 4, MID: 5, FWD: 1 },
+  { name: "3-5-2", DEF: 3, MID: 5, FWD: 2 },
+  { name: "3-4-3", DEF: 3, MID: 4, FWD: 3 },
+  { name: "5-3-2", DEF: 5, MID: 3, FWD: 2 },
+  { name: "5-4-1", DEF: 5, MID: 4, FWD: 1 },
+];
+const POS_LABELS = { GK: "Arquero", DEF: "Defensor", MID: "Mediocampista", FWD: "Delantero" };
+// Fases del fantasy y las etapas de cada una (para deadlines, desde matches).
+const FANTASY_PHASES = [
+  { n: 1, label: "Fase de grupos", stages: ["group"] },
+  { n: 2, label: "Dieciseisavos",  stages: ["R32"] },
+  { n: 3, label: "Octavos",        stages: ["R16"] },
+  { n: 4, label: "Cuartos",        stages: ["QF"] },
+  { n: 5, label: "Semis + Final",  stages: ["SF", "TP", "FINAL"] },
+];
+
+let fantasyAll = null;            // catálogo [{id,name,team,position,price,photo}]
+let fantasyById = new Map();
+let fantasyEntered = false;       // ya entramos al menos una vez (para fijar fase default)
+let fPhase = 1;
+let fFormation = FORMATIONS[0];
+let fSquad = { GK: [], DEF: [], MID: [], FWD: [] };
+let fCaptain = null;
+let fLocked = false;
+let fPickPos = null;              // posición que se está eligiendo en el overlay
+let fSavedSnap = "";             // snapshot del último estado guardado (para "sin guardar")
+
+// --- helpers ---
+const fmtM = (x) => (Math.round((Number(x) || 0) * 10) / 10) + "M";
+const shortName = (n) => {
+  const parts = String(n || "").trim().split(/\s+/);
+  return parts.length > 1 ? parts[parts.length - 1] : (n || "");
+};
+const normName = (s) =>
+  String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const fSquadIds = () => [...fSquad.GK, ...fSquad.DEF, ...fSquad.MID, ...fSquad.FWD];
+const spentTotal = () =>
+  fSquadIds().reduce((s, id) => s + Number(fantasyById.get(id)?.price || 0), 0);
+function fantasySnap() {
+  return fSquadIds().slice().sort().join(",") + "|" + (fCaptain || "");
+}
+function phaseDeadline(n) {
+  const ph = FANTASY_PHASES.find((p) => p.n === n);
+  const ks = matches.filter((m) => ph.stages.includes(m.stage))
+    .map((m) => +new Date(m.kickoff)).filter((t) => !isNaN(t));
+  return ks.length ? new Date(Math.min(...ks)) : null;
+}
+function defaultPhase() {
+  const now = new Date();
+  for (const ph of FANTASY_PHASES) {
+    const dl = phaseDeadline(ph.n);
+    if (!dl || dl > now) return ph.n;
+  }
+  return 5;
+}
+
+function bindFantasy() {
+  $$("#fantasy-tabs .tab").forEach((b) =>
+    b.addEventListener("click", () => {
+      const t = b.dataset.ftab;
+      $$("#fantasy-tabs .tab").forEach((x) => x.classList.toggle("active", x === b));
+      $("#fantasy-squad-pane").classList.toggle("hidden", t !== "squad");
+      $("#fantasy-ranking-pane").classList.toggle("hidden", t !== "ranking");
+      if (t === "ranking") { $("#fantasy-save-bar").classList.add("hidden"); renderFantasyRanking(); }
+      else enterFantasySquad();
+    }));
+  $("#fantasy-save-btn").addEventListener("click", saveFantasy);
+  $("#fp-close").addEventListener("click", closePicker);
+  $("#fp-search").addEventListener("input", (e) => renderPickerList(e.target.value));
+  $("#fantasy-picker").addEventListener("click", (e) => {
+    if (e.target.id === "fantasy-picker") closePicker();
+  });
+}
+
+async function renderFantasy() {
+  await loadFantasyPlayers();
+  if (!fantasyEntered) { fPhase = defaultPhase(); fantasyEntered = true; }
+  if (!fantasyAll.length) {
+    $("#fantasy-pitch").innerHTML =
+      `<p class="muted empty-state">El catálogo de jugadores todavía no está cargado.<br>` +
+      `Aparece tras la primera sincronización con API-Football.</p>`;
+    $("#fantasy-budget").innerHTML = "";
+    $("#fantasy-deadline").textContent = "";
+    return;
+  }
+  const rankingTab = !$("#fantasy-ranking-pane").classList.contains("hidden");
+  if (rankingTab) return renderFantasyRanking();
+  await enterFantasySquad();
+}
+
+async function loadFantasyPlayers() {
+  if (fantasyAll) return;
+  let all = [], from = 0; const step = 1000;
+  while (true) {
+    const { data, error } = await sb.from("fantasy_players")
+      .select("id,name,team,position,price,photo")
+      .order("price", { ascending: false })
+      .range(from, from + step - 1);
+    if (error) { console.error(error); break; }
+    all = all.concat(data || []);
+    if (!data || data.length < step) break;
+    from += step;
+  }
+  fantasyAll = all;
+  fantasyById = new Map(all.map((p) => [p.id, p]));
+}
+
+async function enterFantasySquad() {
+  if (!fantasyAll || !fantasyAll.length) return;
+  buildFantasyPhaseSelect();
+  await loadMySquad();
+  computeFantasyLock();
+  buildFantasyFormationSelect();
+  renderPitch();
+}
+
+function buildFantasyPhaseSelect() {
+  const sel = $("#fantasy-phase");
+  sel.innerHTML = "";
+  const now = new Date();
+  for (const ph of FANTASY_PHASES) {
+    const dl = phaseDeadline(ph.n);
+    const closed = dl && dl <= now;
+    sel.append(el("option", { value: String(ph.n) }, ph.label + (closed ? " 🔒" : "")));
+  }
+  sel.value = String(fPhase);
+  sel.onchange = async () => {
+    fPhase = +sel.value;
+    await loadMySquad();
+    computeFantasyLock();
+    buildFantasyFormationSelect();
+    renderPitch();
+  };
+}
+
+function buildFantasyFormationSelect() {
+  const sel = $("#fantasy-formation");
+  sel.innerHTML = "";
+  for (const f of FORMATIONS) sel.append(el("option", { value: f.name }, f.name));
+  sel.value = fFormation.name;
+  sel.disabled = fLocked;
+  sel.onchange = () => onFormationChange(sel.value);
+}
+
+async function loadMySquad() {
+  fSquad = { GK: [], DEF: [], MID: [], FWD: [] };
+  fCaptain = null;
+  const { data, error } = await sb.rpc("fantasy_my_squad", {
+    p_token: session.token, p_phase: fPhase,
+  });
+  if (error) {
+    if (error.message.includes("SESION_INVALIDA")) return logout();
+  } else {
+    for (const r of data || []) {
+      const p = fantasyById.get(r.footballer_id);
+      if (!p) continue;
+      fSquad[p.position].push(r.footballer_id);
+      if (r.is_captain) fCaptain = r.footballer_id;
+    }
+    // Inferir la formación a partir de los conteos guardados.
+    const f = FORMATIONS.find((F) =>
+      F.DEF === fSquad.DEF.length && F.MID === fSquad.MID.length && F.FWD === fSquad.FWD.length);
+    if (f) fFormation = f;
+  }
+  fSavedSnap = fantasySnap();
+}
+
+function computeFantasyLock() {
+  const dl = phaseDeadline(fPhase);
+  fLocked = !!dl && dl <= new Date();
+}
+
+function onFormationChange(name) {
+  const f = FORMATIONS.find((F) => F.name === name);
+  if (!f) return;
+  fFormation = f;
+  // Si la nueva formación tiene menos lugares en un puesto, recorto el excedente.
+  for (const pos of ["DEF", "MID", "FWD"]) {
+    if (fSquad[pos].length > f[pos]) {
+      const dropped = fSquad[pos].splice(f[pos]);
+      if (dropped.includes(fCaptain)) fCaptain = null;
+    }
+  }
+  renderPitch();
+}
+
+function renderPitch() {
+  const used = spentTotal();
+  const over = used > FANTASY_BUDGET;
+
+  // Barra de presupuesto
+  const budget = $("#fantasy-budget");
+  budget.innerHTML = "";
+  const pct = Math.min(100, used / FANTASY_BUDGET * 100);
+  budget.append(
+    el("div", { className: "fb-bar" },
+      el("div", { className: "fb-fill" + (over ? " over" : ""), style: `width:${pct}%` })),
+    el("div", { className: "fb-text" + (over ? " over" : "") },
+      `Presupuesto ${fmtM(used)} / ${FANTASY_BUDGET}M · ` +
+      (over ? "te pasaste por " + fmtM(used - FANTASY_BUDGET)
+            : "te quedan " + fmtM(FANTASY_BUDGET - used))),
+  );
+
+  // Deadline / lock
+  const dl = phaseDeadline(fPhase);
+  $("#fantasy-deadline").textContent = dl
+    ? (fLocked ? "🔒 Esta fase ya cerró: el plantel quedó fijo."
+               : "⏰ Cierra al inicio de la fase: " + fmtDate(dl))
+    : "Esta fase todavía no tiene partidos cargados.";
+
+  // Cancha (delanteros arriba, arquero abajo)
+  const pitch = $("#fantasy-pitch");
+  pitch.innerHTML = "";
+  for (const pos of ["FWD", "MID", "DEF", "GK"]) {
+    const max = pos === "GK" ? 1 : fFormation[pos];
+    const line = el("div", { className: "fp-line" });
+    for (let i = 0; i < max; i++) {
+      const id = fSquad[pos][i];
+      line.append(id ? filledSlot(id, pos) : emptySlot(pos));
+    }
+    pitch.append(line);
+  }
+  refreshFantasySaveBar();
+}
+
+function filledSlot(id, pos) {
+  const p = fantasyById.get(id);
+  const isCap = fCaptain === id;
+  const slot = el("div", { className: "fp-slot filled" + (isCap ? " captain" : "") });
+  slot.append(p.photo
+    ? el("img", { className: "fp-photo", src: p.photo, alt: "", loading: "lazy" })
+    : el("div", { className: "fp-photo ph" }, "⚽"));
+  slot.append(el("div", { className: "fp-name" }, shortName(p.name)));
+  slot.append(el("div", { className: "fp-team muted" }, T(p.team)));
+  slot.append(el("div", { className: "fp-price" }, fmtM(p.price)));
+  if (!fLocked) {
+    const cap = el("button", { className: "fp-cap" + (isCap ? " on" : ""), title: "Capitán (x2)" }, "★");
+    cap.addEventListener("click", (e) => {
+      e.stopPropagation();
+      fCaptain = isCap ? null : id;
+      renderPitch();
+    });
+    const rm = el("button", { className: "fp-rm", title: "Quitar" }, "✕");
+    rm.addEventListener("click", (e) => { e.stopPropagation(); removePlayer(id, pos); });
+    slot.append(cap, rm);
+  } else if (isCap) {
+    slot.append(el("span", { className: "fp-capbadge" }, "★"));
+  }
+  return slot;
+}
+
+function emptySlot(pos) {
+  const slot = el("button", { className: "fp-slot empty", disabled: fLocked },
+    el("span", { className: "fp-plus" }, "＋"),
+    el("span", { className: "fp-emptylbl" }, POS_LABELS[pos]));
+  if (!fLocked) slot.addEventListener("click", () => openPicker(pos));
+  return slot;
+}
+
+function removePlayer(id, pos) {
+  fSquad[pos] = fSquad[pos].filter((x) => x !== id);
+  if (fCaptain === id) fCaptain = null;
+  renderPitch();
+}
+
+function openPicker(pos) {
+  fPickPos = pos;
+  $("#fp-title").textContent = "Elegí un " + POS_LABELS[pos].toLowerCase();
+  $("#fp-search").value = "";
+  renderPickerList("");
+  $("#fantasy-picker").classList.remove("hidden");
+  $("#fp-search").focus();
+}
+function closePicker() { $("#fantasy-picker").classList.add("hidden"); }
+
+function renderPickerList(q) {
+  const list = $("#fp-list");
+  list.innerHTML = "";
+  const chosen = new Set(fSquadIds());
+  const remain = FANTASY_BUDGET - spentTotal();
+  const nq = normName(q);
+  const items = fantasyAll
+    .filter((p) => p.position === fPickPos && !chosen.has(p.id) &&
+      (!nq || normName(p.name).includes(nq) || normName(T(p.team)).includes(nq) || normName(p.team).includes(nq)))
+    .slice(0, 250);
+  if (!items.length) {
+    list.append(el("p", { className: "muted small", style: "padding:.6rem" }, "Sin resultados."));
+    return;
+  }
+  for (const p of items) {
+    const aff = Number(p.price) <= remain + 1e-9;
+    const row = el("button", { className: "fp-item" + (aff ? "" : " disabled"), disabled: !aff });
+    row.append(p.photo
+      ? el("img", { className: "fp-photo sm", src: p.photo, alt: "", loading: "lazy" })
+      : el("div", { className: "fp-photo sm ph" }, "⚽"));
+    row.append(el("div", { className: "fp-iname" },
+      el("b", {}, p.name), el("div", { className: "muted small" }, T(p.team))));
+    row.append(el("span", { className: "fp-price" }, fmtM(p.price)));
+    if (aff) row.addEventListener("click", () => addPlayer(p));
+    list.append(row);
+  }
+}
+
+function addPlayer(p) {
+  const max = p.position === "GK" ? 1 : fFormation[p.position];
+  if (fSquad[p.position].length >= max) {
+    toast(`Ya completaste los ${POS_LABELS[p.position].toLowerCase()}s de esta formación.`, "err");
+    return;
+  }
+  if (spentTotal() + Number(p.price) > FANTASY_BUDGET) {
+    toast("Te pasás del presupuesto.", "err");
+    return;
+  }
+  fSquad[p.position].push(p.id);
+  closePicker();
+  renderPitch();
+}
+
+function refreshFantasySaveBar() {
+  const bar = $("#fantasy-save-bar");
+  if (!bar) return;
+  const onFantasy = !$("#view-fantasy").classList.contains("hidden");
+  const onSquad = !$("#fantasy-squad-pane").classList.contains("hidden");
+  const changed = fantasySnap() !== fSavedSnap;
+  if (onFantasy && onSquad && !fLocked && changed) {
+    const n = fSquadIds().length;
+    $("#fantasy-save-info").textContent = `${n}/11 · ${fmtM(spentTotal())}/${FANTASY_BUDGET}M`;
+    bar.classList.remove("hidden");
+  } else {
+    bar.classList.add("hidden");
+  }
+}
+
+async function saveFantasy() {
+  const ids = fSquadIds();
+  if (ids.length !== 11) { toast("El plantel es de 11 jugadores (te faltan).", "err"); return; }
+  if (spentTotal() > FANTASY_BUDGET) { toast(`Te pasás del presupuesto (${FANTASY_BUDGET}M).`, "err"); return; }
+  if (!fCaptain) { toast("Elegí un capitán (★).", "err"); return; }
+  const btn = $("#fantasy-save-btn");
+  btn.disabled = true;
+  const { error } = await sb.rpc("fantasy_save_squad", {
+    p_token: session.token, p_phase: fPhase, p_picks: ids, p_captain: fCaptain,
+  });
+  btn.disabled = false;
+  if (error) {
+    if (error.message.includes("SESION_INVALIDA")) return logout();
+    toast(fantasyErr(error.message), "err");
+    return;
+  }
+  fSavedSnap = fantasySnap();
+  refreshFantasySaveBar();
+  toast("✅ Plantel guardado.", "ok");
+}
+
+function fantasyErr(msg = "") {
+  if (msg.includes("FASE_CERRADA")) return "Esta fase ya cerró.";
+  if (msg.includes("PRESUPUESTO")) return `Te pasaste de los ${FANTASY_BUDGET}M.`;
+  if (msg.includes("FORMACION")) return "Formación inválida (revisá la cantidad por puesto).";
+  if (msg.includes("PLANTEL_INCOMPLETO")) return "El plantel debe tener 11 jugadores.";
+  if (msg.includes("CAPITAN")) return "Elegí un capitán válido.";
+  if (msg.includes("PICKS")) return "Hay jugadores inválidos en el plantel.";
+  if (msg.includes("SESION_INVALIDA")) return "Tu sesión expiró, volvé a entrar.";
+  return "Error: " + msg;
+}
+
+async function renderFantasyRanking() {
+  const wrap = $("#fantasy-ranking-table");
+  wrap.innerHTML = `<div class="spinner">Cargando…</div>`;
+  const { data, error } = await sb.from("fantasy_leaderboard")
+    .select("*").order("points", { ascending: false });
+  if (error) { wrap.innerHTML = `<p class="error">${error.message}</p>`; return; }
+  if (!data || !data.length) {
+    wrap.innerHTML = `<p class="muted empty-state">Todavía no hay puntos. ¡Armá tu plantel! 🃏</p>`;
+    return;
+  }
+  const table = el("table", { className: "rank" });
+  table.append(el("thead", {}, rowOf("tr", th("Pos"), th("Jugador"), th("Puntos", 1))));
+  const tbody = el("tbody");
+  data.forEach((r, i) => {
+    const tr = el("tr", r.player_id === session.player_id ? { className: "me" } : {});
+    tr.append(el("td", { className: "pos" }, i < 3 ? MEDALS[i] : String(i + 1)));
+    const nameTd = el("td", { className: "rk-name" }, r.player_name);
+    if (r.player_id === session.player_id) nameTd.append(el("span", { className: "you" }, "vos"));
+    tr.append(nameTd);
+    tr.append(el("td", { className: "pts" }, String(r.points)));
+    tbody.append(tr);
+  });
+  table.append(tbody);
+  wrap.innerHTML = "";
+  wrap.append(el("div", { className: "rank-card" }, table));
 }

@@ -63,6 +63,7 @@ Tiene **ranking final** (acumulado) y **ranking semanal**.
    | `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Settings → API → **service_role** (secreta) |
    | `FOOTBALL_DATA_TOKEN` | tu token de football-data.org |
    | `ODDS_API_KEY` | *(opcional)* tu API key de [the-odds-api.com](https://the-odds-api.com) para las **cuotas 1X2** |
+   | `APIFOOTBALL_KEY` | *(opcional)* tu API key de [api-football](https://dashboard.api-football.com/register) para el **minigame Fantasy** |
 3. El workflow `.github/workflows/sync-results.yml` corre **cada hora** y también
    podés dispararlo a mano: pestaña **Actions → "Sincronizar resultados del
    Mundial" → Run workflow**.
@@ -93,6 +94,27 @@ próximos (en días pico del Mundial son ~12-15 llamadas/día, muy por debajo de
 > **Importante:** corré la sincronización **antes** de que tus amigos empiecen a
 > cargar pronósticos, así los partidos quedan con su ID definitivo.
 
+### Minigame Fantasy — "Mi Plantel Mundial" (API-Football)
+Un fantasy paralelo al prode: cada usuario tiene **100M de presupuesto** y arma un
+**plantel de 11** (formación elegible: 4-4-2, 4-3-3, 3-5-2…) con futbolistas del
+Mundial que tienen **precio** y **carta de stats**. Suman puntos según su
+rendimiento real (gol, asistencia, minutos, valla invicta, tarjetas…) y el
+**capitán** vale **×2**. El plantel se puede rehacer **libre en cada fase**
+(Grupos → 16avos → Octavos → Cuartos → Semis), con deadline en el primer partido
+de la fase. Tiene **ranking propio** (pestaña *Fantasy*).
+
+Puesta en marcha:
+1. Corré la migración `supabase/migracion-fantasy.sql` (tablas, vistas y RPC).
+2. Registrate en [dashboard.api-football.com](https://dashboard.api-football.com/register)
+   (plan gratis: **100 req/día**) y poné la key en el secret `APIFOOTBALL_KEY`.
+3. El sync (mismo cron) hace, *best-effort*: mapea los fixtures con API-Football,
+   **siembra el catálogo de jugadores una sola vez** (precios desde
+   `scripts/data/fantasy-prices.json`, ajustables por el admin) y baja las **stats
+   por partido finalizado** (1 request por partido, ~104 en todo el torneo).
+
+> Si no ponés `APIFOOTBALL_KEY`, todo lo demás funciona igual y la pestaña Fantasy
+> queda a la espera del catálogo.
+
 ---
 
 ## Probarlo localmente
@@ -119,9 +141,12 @@ en `scripts/sync.mjs` (los campos: id, fecha, etapa, equipos, marcador).
 index.html              UI
 css/styles.css          estilos
 js/config.js            ← acá van tu URL y anon key de Supabase
-js/app.js               lógica (login, pronósticos, ranking, admin)
+js/app.js               lógica (login, pronósticos, ranking, fantasy, admin)
 supabase/schema.sql     base de datos completa (correr una vez)
+supabase/migracion-*.sql migraciones (especiales, cuotas, admin, fantasy…)
 scripts/sync.mjs        sincronizador de resultados
+scripts/fantasy-sync.mjs sync del minigame Fantasy (API-Football)
+scripts/data/fantasy-prices.json  precios semilla de los futbolistas
 .github/workflows/      cron diario de GitHub Actions
 ```
 

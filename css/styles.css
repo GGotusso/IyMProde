@@ -579,3 +579,95 @@ table.rank tbody tr.me { box-shadow: inset 3px 0 0 var(--accent); }
   .admin-player { flex-direction: column; align-items: stretch; }
   .ap-acts { justify-content: flex-end; }
 }
+
+/* ============================ FANTASY ============================ */
+.fantasy-controls { display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; margin-bottom: .6rem; }
+.fantasy-controls label { display: grid; gap: .3rem; font-size: .8rem; color: var(--muted); }
+.save-bar #fantasy-save-info { font-weight: 600; font-size: .9rem; }
+
+/* Barra de presupuesto */
+.fantasy-budget { margin: .4rem 0 .9rem; }
+.fb-bar { height: 10px; background: var(--bg2); border: 1px solid var(--line);
+  border-radius: 999px; overflow: hidden; }
+.fb-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #10b981);
+  transition: width .25s ease; }
+.fb-fill.over { background: linear-gradient(90deg, #f59e0b, var(--danger)); }
+.fb-text { margin-top: .35rem; font-size: .82rem; color: var(--muted); }
+.fb-text.over { color: var(--danger); font-weight: 700; }
+
+/* Cancha */
+.fantasy-pitch {
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(52,211,153,.10), transparent 60%),
+    var(--bg2);
+  border: 1px solid var(--line); border-radius: 16px;
+  padding: 1rem .6rem; display: flex; flex-direction: column; gap: 1rem;
+}
+.fp-line { display: flex; justify-content: center; flex-wrap: wrap; gap: .5rem; }
+.fp-slot {
+  position: relative; width: 88px; min-height: 104px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: .15rem; padding: .5rem .3rem; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--card); text-align: center;
+}
+.fp-slot.empty {
+  border-style: dashed; color: var(--muted); cursor: pointer;
+  background: transparent; transition: border-color .15s, color .15s;
+}
+.fp-slot.empty:hover:not(:disabled) { border-color: var(--accent2); color: var(--txt); }
+.fp-slot.empty:disabled { opacity: .45; cursor: not-allowed; }
+.fp-plus { font-size: 1.5rem; line-height: 1; }
+.fp-emptylbl { font-size: .72rem; }
+.fp-slot.captain { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.fp-photo { width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
+  background: var(--bg2); border: 1px solid var(--line); }
+.fp-photo.ph { display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+.fp-photo.sm { width: 34px; height: 34px; }
+.fp-name { font-size: .78rem; font-weight: 700; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fp-team { font-size: .66rem; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fp-price { font-size: .72rem; font-weight: 800; color: var(--accent); }
+.fp-cap, .fp-rm {
+  position: absolute; top: -6px; width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--bg2); color: var(--muted);
+  font-size: .72rem; line-height: 1; cursor: pointer; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.fp-cap { left: -6px; }
+.fp-cap.on { background: var(--accent); border-color: var(--accent); color: #062018; }
+.fp-rm { right: -6px; }
+.fp-rm:hover { color: var(--danger); border-color: var(--danger); }
+.fp-capbadge {
+  position: absolute; top: -6px; left: -6px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: #062018; font-size: .72rem;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Overlay buscador de jugadores */
+.fantasy-picker {
+  position: fixed; inset: 0; z-index: 60; background: rgba(4,7,15,.6);
+  backdrop-filter: blur(3px); display: flex; align-items: flex-end; justify-content: center;
+}
+.fantasy-picker.hidden { display: none; }
+.fp-box {
+  width: min(560px, 100%); max-height: 80vh; background: var(--card);
+  border: 1px solid var(--line); border-radius: 18px 18px 0 0;
+  display: flex; flex-direction: column; padding: 1rem; gap: .7rem;
+}
+@media (min-width: 600px) {
+  .fantasy-picker { align-items: center; }
+  .fp-box { border-radius: 18px; }
+}
+.fp-head { display: flex; align-items: center; justify-content: space-between; }
+.fp-head span { font-weight: 700; }
+.fp-list { overflow-y: auto; display: flex; flex-direction: column; gap: .35rem; }
+.fp-item {
+  display: flex; align-items: center; gap: .6rem; width: 100%;
+  background: var(--bg2); border: 1px solid var(--line); border-radius: 10px;
+  padding: .4rem .6rem; cursor: pointer; text-align: left; color: var(--txt);
+}
+.fp-item:hover:not(.disabled) { border-color: var(--accent2); }
+.fp-item.disabled { opacity: .4; cursor: not-allowed; }
+.fp-iname { flex: 1; min-width: 0; }
+.fp-iname b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

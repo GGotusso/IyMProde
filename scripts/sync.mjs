@@ -17,6 +17,8 @@
 //    FOOTBALL_DATA_TOKEN         -> token gratis de football-data.org
 //    ODDS_API_KEY (opcional)     -> the-odds-api.com (cuotas 1X2). Sin esto,
 //                                   el sync corre igual pero sin cuotas.
+//    APIFOOTBALL_KEY (opcional)  -> api-sports.io (minigame Fantasy). Sin
+//                                   esto, el sync corre igual pero sin fantasy.
 //    SEASON (opcional)           -> 2026 por defecto
 //
 //  Uso:  node scripts/sync.mjs
@@ -24,6 +26,7 @@
 
 // Carga .env si existe (solo para correr localmente; en Actions usa Secrets).
 import { readFileSync, existsSync } from "node:fs";
+import { syncFantasy } from "./fantasy-sync.mjs";
 for (const envPath of [".env", new URL("../.env", import.meta.url).pathname]) {
   try {
     if (!existsSync(envPath)) continue;
@@ -360,6 +363,10 @@ async function main() {
   console.log(`[sync] Placeholders 'seed' eliminados.`);
 
   await syncExtras();
+
+  // Minigame Fantasy (best-effort, fuente API-Football). No rompe el sync.
+  await syncFantasy({ SUPABASE_URL, SERVICE_KEY });
+
   console.log(`[sync] Listo ✅`);
 }
 

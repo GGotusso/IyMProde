@@ -1141,9 +1141,11 @@ function bindAdminTabs() {
       const t = b.dataset.atab;
       $$("#admin-tabs .tab").forEach((x) => x.classList.toggle("active", x === b));
       $("#admin-players").classList.toggle("hidden", t !== "players");
+      $("#admin-preds").classList.toggle("hidden", t !== "preds");
       $("#admin-matches").classList.toggle("hidden", t !== "matches");
       $("#admin-fantasy").classList.toggle("hidden", t !== "fantasy");
       $("#admin-fpoints").classList.toggle("hidden", t !== "fpoints");
+      if (t === "preds") renderAdminPreds();
       if (t === "fantasy") renderAdminFantasy();
       if (t === "fpoints") renderAdminFpoints();
     }));
@@ -1164,8 +1166,106 @@ function adminErr(msg = "") {
   if (msg.includes("PIN_CORTO")) return "El PIN debe tener al menos 4 caracteres.";
   if (msg.includes("NOMBRE_CORTO")) return "El nombre es muy corto.";
   if (msg.includes("NOMBRE_EXISTE")) return "Ya existe un jugador con ese nombre.";
+  if (msg.includes("MARCADOR_INVALIDO")) return "Marcador inválido (0 a 99).";
+  if (msg.includes("JUGADOR_INEXISTENTE")) return "Ese jugador ya no existe.";
+  if (msg.includes("PARTIDO_INEXISTENTE")) return "Ese partido no existe.";
   if (msg.includes("SESION_INVALIDA")) return "Tu sesión expiró, volvé a entrar.";
   return "Error: " + msg;
+}
+
+// Cargar/corregir el pronóstico de OTRO jugador (saltea el bloqueo por
+// kickoff: es para el amigo que se olvidó y el partido ya está 🔒 cerrado).
+async function renderAdminPreds() {
+  const wrap = $("#admin-preds");
+  wrap.innerHTML = `<div class="spinner">Cargando…</div>`;
+  const { data, error } = await sb.rpc("admin_list_players", { p_token: session.token });
+  if (error) {
+    if (error.message.includes("SESION_INVALIDA")) return logout();
+    wrap.innerHTML = `<p class="error">${adminErr(error.message)}</p>`;
+    return;
+  }
+  const players = data || [];
+
+  wrap.innerHTML = "";
+  wrap.append(el("p", { className: "muted" },
+    "📝 Cargá o corregí el pronóstico de un jugador que se olvidó. Funciona aunque el partido ya esté 🔒 cerrado (saltea el bloqueo). Usalo con criterio: si el partido ya tiene resultado, cargar un pronóstico es regalar puntos."));
+
+  const playerSel = el("select");
+  playerSel.append(el("option", { value: "" }, "— elegí un jugador —"));
+  for (const p of players) playerSel.append(el("option", { value: p.id }, p.name));
+
+  const matchSel = el("select");
+  matchSel.append(el("option", { value: "" }, "— elegí un partido —"));
+  for (const m of matches) {
+    matchSel.append(el("option", { value: m.id },
+      `${T(m.home_team)} vs ${T(m.away_team)} · ${fmtDay(m.kickoff)}${started(m) ? " 🔒" : ""}`));
+  }
+
+  const hg = el("input", { type: "number", min: 0, max: 99, inputmode: "numeric" });
+  const ag = el("input", { type: "number", min: 0, max: 99, inputmode: "numeric" });
+  const note = el("p", { className: "muted small" });
+  const saveBtn = el("button", { className: "primary" }, "Guardar pronóstico");
+
+  // Al elegir jugador+partido, precarga lo que ya tenía (para no pisar a ciegas).
+  async function loadExisting() {
+    note.textContent = "";
+    hg.value = ""; ag.value = "";
+    const pid = playerSel.value, mid = matchSel.value;
+    if (!pid || !mid) return;
+    note.textContent = "Buscando…";
+    const { data: prev, error: e } = await sb.rpc("admin_get_prediction", {
+      p_token: session.token, p_player_id: pid, p_match_id: mid,
+    });
+    if (e) {
+      if (e.message.includes("SESION_INVALIDA")) return logout();
+      note.textContent = adminErr(e.message);
+      return;
+    }
+    const m = matches.find((x) => x.id === mid);
+    const bits = [];
+    if (prev?.length) {
+      hg.value = prev[0].home_goals; ag.value = prev[0].away_goals;
+      bits.push(`Ya tenía cargado ${prev[0].home_goals}-${prev[0].away_goals}: si guardás, lo pisás.`);
+    } else {
+      bits.push("No tenía pronóstico para este partido.");
+    }
+    if (m && m.home_goals != null) bits.push(`⚠️ Este partido ya tiene resultado (${m.home_goals}-${m.away_goals}).`);
+    else if (m && started(m)) bits.push("🔒 El partido ya empezó: el guardado va a saltear el bloqueo.");
+    note.textContent = bits.join(" ");
+  }
+  playerSel.addEventListener("change", loadExisting);
+  matchSel.addEventListener("change", loadExisting);
+
+  saveBtn.addEventListener("click", async () => {
+    const pid = playerSel.value, mid = matchSel.value;
+    if (!pid || !mid) { toast("Elegí jugador y partido.", "err"); return; }
+    if (hg.value === "" || ag.value === "") { toast("Completá el marcador.", "err"); return; }
+    saveBtn.disabled = true; saveBtn.textContent = "…";
+    const { error: e } = await sb.rpc("admin_set_prediction", {
+      p_token: session.token, p_player_id: pid, p_match_id: mid,
+      p_home: +hg.value, p_away: +ag.value,
+    });
+    saveBtn.disabled = false; saveBtn.textContent = "Guardar pronóstico";
+    if (e) {
+      if (e.message.includes("SESION_INVALIDA")) return logout();
+      toast(adminErr(e.message), "err");
+      return;
+    }
+    const pname = playerSel.selectedOptions[0]?.textContent || "el jugador";
+    toast(`✅ Pronóstico de ${pname} guardado (${+hg.value}-${+ag.value}).`, "ok");
+    loadExisting();
+  });
+
+  wrap.append(
+    el("div", { className: "admin-pred-form" },
+      el("label", {}, "Jugador", playerSel),
+      el("label", {}, "Partido", matchSel),
+      el("label", {}, "Marcador",
+        el("div", { className: "ap-score" }, hg, el("span", { className: "sep" }, "–"), ag)),
+      saveBtn,
+    ),
+    note,
+  );
 }
 
 // Lista de jugadores con acciones de gestión (solo admin).

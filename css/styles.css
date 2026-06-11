@@ -618,6 +618,24 @@ table.rank tbody tr.me { box-shadow: inset 3px 0 0 var(--accent); }
   .ap-acts { justify-content: flex-end; }
 }
 
+/* ---- admin · cargar pronóstico de un jugador ---- */
+.admin-pred-form {
+  display: flex; gap: .8rem; flex-wrap: wrap; align-items: flex-end;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; padding: .9rem 1rem; margin-top: .6rem;
+}
+.admin-pred-form label {
+  display: flex; flex-direction: column; gap: .3rem;
+  font-size: .78rem; font-weight: 700; color: var(--muted);
+}
+.admin-pred-form select { min-width: 200px; max-width: 100%; }
+.ap-score { display: flex; align-items: center; gap: .35rem; }
+.ap-score input { width: 4.2rem; text-align: center; }
+@media (max-width: 560px) {
+  .admin-pred-form { flex-direction: column; align-items: stretch; }
+  .admin-pred-form select { min-width: 0; }
+}
+
 /* ---- admin · fantasy (catálogo) ---- */
 .af-add { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: .8rem .9rem; }
 .af-add .block-title { margin: 0 0 .6rem; }

@@ -18,16 +18,24 @@ alter table public.special_predictions enable row level security;
 -- sin políticas para anon => deny-all; todo pasa por RPC (security definer)
 
 -- 2) Respuestas reales (derivadas de los partidos y de la caché de goleadores)
+--    IMPORTANTE: se busca por STAGE y no por id ('FINAL'/'SF-1'): el sync
+--    reemplaza los partidos seed por filas con id 'api-...' y los ids viejos
+--    desaparecen. 'winner' resuelve el campeón cuando la final va a penales.
+alter table public.matches add column if not exists winner text;
+
 create or replace view public.special_results as
 select
-  (select case when home_goals > away_goals then home_team
-               when away_goals > home_goals then away_team end
-     from public.matches where id = 'FINAL')                            as champion,
-  (select array_remove(array[home_team, away_team], 'Por definir')
-     from public.matches where id = 'FINAL')                            as finalists,
+  (select case when m.home_goals > m.away_goals then m.home_team
+               when m.away_goals > m.home_goals then m.away_team
+               else m.winner end
+     from public.matches m where m.stage = 'FINAL'
+     order by (m.source = 'api') desc limit 1)                          as champion,
+  (select array_remove(array[m.home_team, m.away_team], 'Por definir')
+     from public.matches m where m.stage = 'FINAL'
+     order by (m.source = 'api') desc limit 1)                          as finalists,
   (select array_remove(array_agg(t), 'Por definir')
      from (select unnest(array[home_team, away_team]) t
-             from public.matches where id in ('SF-1','SF-2')) x)        as semifinalists,
+             from public.matches where stage = 'SF') x)                 as semifinalists,
   (select data->0->'player'->>'name'
      from public.meta_cache where key = 'scorers')                      as top_scorer;
 

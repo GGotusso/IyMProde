@@ -86,6 +86,18 @@ function mapMatch(m) {
   const groupName = m.group ? String(m.group).replace(/^GROUP_?/i, "") : null;
   const finished = m.status === "FINISHED" || m.status === "AWARDED";
   const ft = m.score?.fullTime || {};
+  // En eliminatorias con alargue/penales preferimos el marcador "regular"
+  // si la API lo separa (así un empate en los 90' puntúa como empate).
+  const rt = m.score?.regularTime || null;
+  const home = m.homeTeam?.name || m.homeTeam?.shortName || "Por definir";
+  const away = m.awayTeam?.name || m.awayTeam?.shortName || "Por definir";
+  // Ganador según la API (clave si la final se define por penales: el
+  // marcador queda empatado y solo 'winner' permite saber el campeón).
+  const winner = finished
+    ? (m.score?.winner === "HOME_TEAM" ? home
+      : m.score?.winner === "AWAY_TEAM" ? away
+      : null)
+    : null;
   // Cuotas: solo si vienen como números (en planes sin odds llega un mensaje).
   const o = m.odds || {};
   const num = (v) => (typeof v === "number" && isFinite(v) ? v : null);
@@ -94,11 +106,12 @@ function mapMatch(m) {
     stage,
     group_name: stage === "group" ? groupName : null,
     matchday: m.matchday ?? null,
-    home_team: m.homeTeam?.name || m.homeTeam?.shortName || "Por definir",
-    away_team: m.awayTeam?.name || m.awayTeam?.shortName || "Por definir",
+    home_team: home,
+    away_team: away,
     kickoff: m.utcDate,
-    home_goals: finished ? (ft.home ?? null) : null,
-    away_goals: finished ? (ft.away ?? null) : null,
+    home_goals: finished ? (rt?.home ?? ft.home ?? null) : null,
+    away_goals: finished ? (rt?.away ?? ft.away ?? null) : null,
+    winner,
     odds_home: num(o.homeWin),
     odds_draw: num(o.draw),
     odds_away: num(o.awayWin),

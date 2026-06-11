@@ -383,7 +383,8 @@ function renderPredictions() {
   }
   const wrap = $("#matches-list");
   wrap.innerHTML = "";
-  dirty.clear();
+  // NO limpiamos `dirty`: cambiar el filtro de fase o "sólo pendientes" no
+  // debe descartar pronósticos sin guardar (matchRow los repone en los inputs).
   renderMatchSections(wrap, list, matchRow);
   if (!wrap.children.length) {
     wrap.innerHTML = `<p class="muted empty-state">${
@@ -398,7 +399,8 @@ function renderPredictions() {
 
 function matchRow(m) {
   const editable = canPredict(m);
-  const pred = myPreds.get(m.id);
+  const saved = myPreds.get(m.id);
+  const pred = dirty.get(m.id) ?? saved;   // el borrador sin guardar tiene prioridad
   const played = m.home_goals != null && m.away_goals != null;
 
   // Estado visual del pronóstico (solo para partidos próximos editables).
@@ -421,7 +423,7 @@ function matchRow(m) {
       row.className = "match done";
       stateChip.className = "pred-state unsaved";
       stateChip.textContent = "● Sin guardar";
-    } else if (pred) {
+    } else if (saved) {
       row.className = "match done";
       stateChip.className = "pred-state ok";
       stateChip.textContent = "✓ Cargado";
@@ -547,12 +549,24 @@ async function savePredictions() {
     toast("No se pudo guardar: " + error.message, "err");
     return;
   }
-  for (const [id, v] of dirty) myPreds.set(id, v);
+  const saved = Number(data) || 0;
   dirty.clear();
+  if (saved < items.length) {
+    // El server salteó algunos (cerraron entre que los cargaste y guardaste):
+    // recargamos desde la base para no mostrar como guardado algo que no lo está.
+    await loadMyPredictions();
+    await loadMatches();
+    updatePendingBadge();
+    refreshSaveBar();
+    renderPredictions();
+    toast(`⚠️ Se guardaron ${saved} de ${items.length}: el resto ya estaba cerrado.`, "err");
+    return;
+  }
+  for (const { match_id, home, away } of items) myPreds.set(match_id, { home, away });
   updatePendingBadge();
   refreshSaveBar();
   renderPredictions();
-  toast(`✅ Guardado (${data} partido${data === 1 ? "" : "s"}).`, "ok");
+  toast(`✅ Guardado (${saved} partido${saved === 1 ? "" : "s"}).`, "ok");
 }
 
 function updateStatus(text, kind) {

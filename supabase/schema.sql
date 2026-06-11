@@ -57,7 +57,8 @@ create table if not exists public.matches (
   odds_away   numeric,                            -- cuota victoria visitante (2), promedio de casas
   odds_best   jsonb,                              -- mejor casa por resultado: {"home":{"book":"Bet365","price":1.55}, "draw":{...}, "away":{...}}
   home_crest  text,                               -- URL del escudo local
-  away_crest  text                                -- URL del escudo visitante
+  away_crest  text,                               -- URL del escudo visitante
+  winner      text                                -- ganador (resuelve penales en eliminatorias)
 );
 
 -- (Si ya creaste la tabla antes, esto agrega las columnas que falten)
@@ -68,6 +69,7 @@ alter table public.matches add column if not exists odds_away  numeric;
 alter table public.matches add column if not exists odds_best  jsonb;
 alter table public.matches add column if not exists home_crest text;
 alter table public.matches add column if not exists away_crest text;
+alter table public.matches add column if not exists winner     text;
 
 -- Pronósticos de cada jugador para cada partido.
 create table if not exists public.predictions (

@@ -15,8 +15,10 @@ declare
   v_h    int;
   v_a    int;
 begin
-  select kickoff, home_goals, away_goals into v_kick, v_h, v_a
-    from matches where id = p_match_id;
+  -- OJO: home_goals/away_goals también son columnas de salida de la función;
+  -- hay que calificar con el alias de la tabla para que no sean ambiguas.
+  select m.kickoff, m.home_goals, m.away_goals into v_kick, v_h, v_a
+    from matches m where m.id = p_match_id;
 
   -- Sin spoilers: si el partido no empezó (o no existe), no devolvemos nada.
   if v_kick is null or v_kick > now() then

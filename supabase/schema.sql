@@ -34,10 +34,21 @@ create table if not exists public.players (
   name          text not null,
   name_key      text not null unique,          -- nombre normalizado (lower/trim)
   pin_hash      text not null,
-  session_token uuid,
+  session_token uuid,                          -- legacy: ver player_sessions
   is_admin      boolean not null default false,
   created_at    timestamptz not null default now()
 );
+
+-- Sesiones activas: varios tokens por jugador (uno por dispositivo). Así
+-- loguearte en el celular NO invalida la sesión de la web y viceversa.
+create table if not exists public.player_sessions (
+  token        uuid primary key default gen_random_uuid(),
+  player_id    uuid not null references public.players(id) on delete cascade,
+  created_at   timestamptz not null default now(),
+  last_seen_at timestamptz not null default now()
+);
+create index if not exists idx_player_sessions_player
+  on public.player_sessions(player_id);
 
 -- Partidos del torneo (fuente de la verdad de fixture + resultados).
 create table if not exists public.matches (
@@ -208,17 +219,16 @@ begin
     if v_player.pin_hash <> crypt(p_pin, v_player.pin_hash) then
       raise exception 'PIN_INCORRECTO';
     end if;
-    update players set session_token = v_token where id = v_player.id;
-    return query select v_player.id, v_player.name, v_token, v_player.is_admin;
   else
     select count(*) into v_count from players;
-    insert into players(name, name_key, pin_hash, session_token, is_admin)
-    values (trim(p_name), _norm(p_name), crypt(p_pin, gen_salt('bf')),
-            v_token, (v_count = 0))
-    returning id, players.name, players.is_admin
-      into v_player.id, v_player.name, v_player.is_admin;
-    return query select v_player.id, v_player.name, v_token, v_player.is_admin;
+    insert into players(name, name_key, pin_hash, is_admin)
+    values (trim(p_name), _norm(p_name), crypt(p_pin, gen_salt('bf')), (v_count = 0))
+    returning * into v_player;
   end if;
+
+  -- una sesión nueva por dispositivo (no pisa las de otros dispositivos)
+  insert into player_sessions(token, player_id) values (v_token, v_player.id);
+  return query select v_player.id, v_player.name, v_token, v_player.is_admin;
 end;
 $$;
 
@@ -235,7 +245,7 @@ begin
   if not found or v_player.pin_hash <> crypt(p_pin, v_player.pin_hash) then
     raise exception 'CREDENCIALES_INVALIDAS';
   end if;
-  update players set session_token = v_token where id = v_player.id;
+  insert into player_sessions(token, player_id) values (v_token, v_player.id);
   return query select v_player.id, v_player.name, v_token, v_player.is_admin;
 end;
 $$;
@@ -245,9 +255,21 @@ create or replace function public._player_by_token(p_token uuid)
 returns players language plpgsql security definer set search_path = public as $$
 declare v_player players%rowtype;
 begin
+  select p.* into v_player
+    from player_sessions s join players p on p.id = s.player_id
+   where s.token = p_token;
+  if found then
+    update player_sessions set last_seen_at = now() where token = p_token;
+    return v_player;
+  end if;
+  -- compatibilidad con sesiones previas a player_sessions
   select * into v_player from players where session_token = p_token;
-  if not found then raise exception 'SESION_INVALIDA'; end if;
-  return v_player;
+  if found then
+    insert into player_sessions(token, player_id)
+      values (p_token, v_player.id) on conflict (token) do nothing;
+    return v_player;
+  end if;
+  raise exception 'SESION_INVALIDA';
 end;
 $$;
 

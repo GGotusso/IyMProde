@@ -217,7 +217,7 @@ async function enterApp() {
   $("#nav-admin").classList.toggle("hidden", !session.is_admin);
 
   await loadMatches();
-  await loadMyPredictions();
+  if (!(await loadMyPredictions())) return;   // sesión inválida: ya volvió al login
   updatePendingBadge();
   showView("predictions");
 }
@@ -250,16 +250,21 @@ async function loadMatches() {
   buildStageFilter();
 }
 
+// Devuelve true si la sesión sigue siendo válida. Ante SESION_INVALIDA cierra
+// sesión y devuelve false para que enterApp NO siga renderizando la app vacía
+// por encima del login (era lo que mostraba la "cuenta vacía que no es la mía").
 async function loadMyPredictions() {
   myPreds.clear();
   const { data, error } = await sb.rpc("my_predictions", { p_token: session.token });
   if (error) {
-    if (error.message.includes("SESION_INVALIDA")) { logout(); }
-    return;
+    if (error.message.includes("SESION_INVALIDA")) { logout(); return false; }
+    console.error(error);   // error transitorio (red): seguimos en la app
+    return true;
   }
   for (const p of data || []) {
     myPreds.set(p.match_id, { home: p.home_goals, away: p.away_goals });
   }
+  return true;
 }
 
 // =====================================================================

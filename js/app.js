@@ -79,6 +79,10 @@ const fmtDate = (iso) =>
   }) + " hs";
 const fmtDay = (iso) =>
   new Date(iso).toLocaleString("es-AR", { day: "2-digit", month: "short", timeZone: AR_TZ });
+// Día del calendario en hora de Argentina (YYYY-MM-DD), para comparar fechas.
+const dayKey = (d) =>
+  new Date(d).toLocaleDateString("en-CA", { timeZone: AR_TZ });
+const isToday = (iso) => dayKey(iso) === dayKey(new Date());
 
 // Eliminatorias: los pronósticos se habilitan 2 días antes del partido
 // (antes los equipos suelen estar "Por definir").
@@ -132,6 +136,7 @@ async function init() {
   $("#save-btn").addEventListener("click", savePredictions);
   $("#save-bar-btn").addEventListener("click", savePredictions);
   $("#save-special-btn").addEventListener("click", saveSpecials);
+  $("#today-only").addEventListener("change", renderPredictions);
   $("#pending-only").addEventListener("change", renderPredictions);
 
   // Aviso al cerrar/recargar la pestaña con cambios sin guardar.
@@ -378,6 +383,9 @@ function renderPredictions() {
   } else if (filter !== "all") {
     list = matches.filter((m) => m.stage === filter);
   }
+  if ($("#today-only").checked) {
+    list = list.filter((m) => isToday(m.kickoff));
+  }
   if ($("#pending-only").checked) {
     list = list.filter((m) => canPredict(m) && !myPreds.has(m.id));
   }
@@ -390,7 +398,9 @@ function renderPredictions() {
     wrap.innerHTML = `<p class="muted empty-state">${
       $("#pending-only").checked
         ? "¡No te queda ningún partido próximo sin cargar! 🎉"
-        : "No hay partidos para mostrar todavía."
+        : $("#today-only").checked
+          ? "No hay partidos hoy. 📅"
+          : "No hay partidos para mostrar todavía."
     }</p>`;
   }
   updateStatus("");

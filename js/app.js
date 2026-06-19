@@ -12,6 +12,9 @@ let session = loadSession();        // { player_id, name, token, is_admin }
 let matches = [];                   // cache del fixture
 let myPreds = new Map();            // match_id -> {home, away}
 const dirty = new Map();            // cambios sin guardar
+const AUTO_REFRESH_MS = 10_000;     // refresca resultados/rankings sin recargar la pagina
+let autoRefreshTimer = null;
+let autoRefreshRunning = false;
 
 function loadSession() {
   try { return JSON.parse(localStorage.getItem(SESSION_KEY)); }
@@ -143,6 +146,9 @@ async function init() {
   window.addEventListener("beforeunload", (e) => {
     if (dirty.size > 0) { e.preventDefault(); e.returnValue = ""; }
   });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) refreshLiveData();
+  });
 
   if (SUPABASE_URL.includes("TU-PROYECTO")) {
     $("#conn-status").textContent =
@@ -203,6 +209,7 @@ function friendlyError(msg = "") {
 }
 
 function logout() {
+  stopAutoRefresh();
   clearSession();
   showLogin();
 }
@@ -220,10 +227,50 @@ async function enterApp() {
   if (!(await loadMyPredictions())) return;   // sesión inválida: ya volvió al login
   updatePendingBadge();
   showView("predictions");
+  startAutoRefresh();
 }
 
 // Cuenta partidos próximos (cierran dentro de 7 días) que todavía no pronosticaste,
 // y lo muestra como globo rojo en el nav de "Mis pronósticos".
+function currentView() {
+  const view = $$(".view").find((v) => !v.classList.contains("hidden"));
+  return view?.id?.replace(/^view-/, "") || null;
+}
+
+function startAutoRefresh() {
+  stopAutoRefresh();
+  autoRefreshTimer = setInterval(refreshLiveData, AUTO_REFRESH_MS);
+}
+
+function stopAutoRefresh() {
+  if (!autoRefreshTimer) return;
+  clearInterval(autoRefreshTimer);
+  autoRefreshTimer = null;
+}
+
+async function refreshLiveData() {
+  if (!session?.token || autoRefreshRunning || document.hidden) return;
+  autoRefreshRunning = true;
+  try {
+    await loadMatches({ rebuildFilter: false });
+    updatePendingBadge();
+
+    const view = currentView();
+    if (view === "ranking") renderRanking();
+    else if (view === "mundial") renderMundial();
+    else if (view === "especiales") renderEspeciales();
+    else if (view === "admin" && session.is_admin) renderAdmin();
+    else if (view === "predictions" && dirty.size === 0) renderPredictions();
+    else if (view === "fantasy" && !$("#fantasy-ranking-pane").classList.contains("hidden")) {
+      renderFantasyRanking();
+    }
+  } catch (err) {
+    console.error(err);
+  } finally {
+    autoRefreshRunning = false;
+  }
+}
+
 const PENDING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 function updatePendingBadge() {
   const now = Date.now();
@@ -240,14 +287,14 @@ function updatePendingBadge() {
   }
 }
 
-async function loadMatches() {
+async function loadMatches({ rebuildFilter = true } = {}) {
   const { data, error } = await sb
     .from("matches")
     .select("*")
     .order("sort_order", { ascending: true });
   if (error) { console.error(error); return; }
   matches = data || [];
-  buildStageFilter();
+  if (rebuildFilter) buildStageFilter();
 }
 
 // Devuelve true si la sesión sigue siendo válida. Ante SESION_INVALIDA cierra

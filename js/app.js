@@ -645,6 +645,8 @@ function updateStatus(text, kind) {
 let rankMode = "general";   // "general" | "weekly" | "h2h"
 let weeklyRows = [];        // cache de leaderboard_weekly de la última carga
 let h2hPlayers = null;      // cache de jugadores para el selector de cara a cara
+let openRankDetail = null;  // fila de detalle abierta en el ranking
+let rankDetailSeq = 0;      // evita pintar respuestas viejas si se clickea rapido
 
 function bindRankTabs() {
   $$("#rank-tabs .tab").forEach((b) =>
@@ -696,7 +698,7 @@ function filterWeekly() {
       || a.player_name.localeCompare(b.player_name));
   if (!rows.length) { wrap.innerHTML = `<p class="muted">Sin puntos en esa fecha todavía.</p>`; return; }
   renderRankTable(wrap, rows, ["Pos", "Jugador", "Exactos", "Puntos"],
-    (r) => [r.exact_hits, r.points], (r) => r.player_id);
+    (r) => [r.exact_hits, r.points], (r) => r.player_id, { details: false });
 }
 
 // =====================================================================
@@ -840,8 +842,9 @@ function weekLabels() {
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
-function renderRankTable(wrap, rows, headers, cols, idOf) {
+function renderRankTable(wrap, rows, headers, cols, idOf, opts = {}) {
   if (!rows?.length) { wrap.innerHTML = `<p class="muted">Sin datos todavía. ¡Cargá tus pronósticos!</p>`; return; }
+  openRankDetail = null;
   const table = el("table", { className: "rank" });
   const thead = el("tr");
   headers.forEach((h, i) =>
@@ -849,19 +852,169 @@ function renderRankTable(wrap, rows, headers, cols, idOf) {
   table.append(el("thead", {}, thead));
   const tbody = el("tbody");
   rows.forEach((r, i) => {
-    const tr = el("tr", idOf(r) === session.player_id ? { className: "me" } : {});
+    const playerId = idOf(r);
+    const isMe = playerId === session.player_id;
+    const canOpenDetail = opts.details !== false;
+    const tr = el("tr", {
+      className: (isMe ? "me " : "") + (canOpenDetail ? "rank-click" : ""),
+      tabIndex: canOpenDetail ? 0 : -1,
+      title: canOpenDetail ? "Ver desglose de puntos" : "",
+    });
     tr.append(el("td", { className: "pos" }, i < 3 ? MEDALS[i] : String(i + 1)));
     const nameTd = el("td", { className: "rk-name" }, r.player_name);
-    if (idOf(r) === session.player_id) nameTd.append(el("span", { className: "you" }, "vos"));
+    if (isMe) nameTd.append(el("span", { className: "you" }, "vos"));
     tr.append(nameTd);
     const [exact, pts] = cols(r);
     tr.append(el("td", { style: "text-align:right" }, String(exact)));
     tr.append(el("td", { className: "pts" }, String(pts)));
+    if (canOpenDetail) {
+      tr.addEventListener("click", () =>
+        toggleRankDetail(tbody, tr, playerId, r.player_name, headers.length));
+      tr.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          toggleRankDetail(tbody, tr, playerId, r.player_name, headers.length);
+        }
+      });
+    }
     tbody.append(tr);
   });
   table.append(tbody);
   wrap.innerHTML = "";
   wrap.append(el("div", { className: "rank-card" }, table));
+}
+
+function toggleRankDetail(tbody, tr, playerId, playerName, colSpan) {
+  if (openRankDetail?.row === tr) {
+    openRankDetail.detailRow.remove();
+    tr.classList.remove("open");
+    openRankDetail = null;
+    return;
+  }
+  if (openRankDetail) {
+    openRankDetail.row.classList.remove("open");
+    openRankDetail.detailRow.remove();
+  }
+
+  const box = el("div", { className: "rank-detail" },
+    el("div", { className: "spinner small" }, "Cargando desglose..."));
+  const detailRow = el("tr", { className: "rank-detail-row" },
+    el("td", { colSpan }, box));
+  tr.after(detailRow);
+  tr.classList.add("open");
+  openRankDetail = { row: tr, detailRow };
+  loadRankDetail(playerId, playerName, box, ++rankDetailSeq);
+}
+
+async function loadRankDetail(playerId, playerName, box, seq) {
+  const { data, error } = await sb.rpc("player_score_breakdown", { p_player_id: playerId });
+  if (seq !== rankDetailSeq) return;
+  if (error) {
+    const missing = error.message.includes("player_score_breakdown")
+      ? "Falta correr la migracion supabase/migracion-ranking-desglose.sql en Supabase."
+      : error.message;
+    box.innerHTML = "";
+    box.append(el("p", { className: "error small" }, missing));
+    return;
+  }
+  renderRankDetail(box, playerName, data || []);
+}
+
+function renderRankDetail(box, playerName, rows) {
+  box.innerHTML = "";
+  const matches = rows.filter((r) => r.item_type === "match");
+  const specials = rows.filter((r) => r.item_type === "special");
+  const exact = matches.filter((r) => r.category === "exacto");
+  const sign = matches.filter((r) => r.category === "signo");
+  const miss = matches.filter((r) => r.category === "error");
+  const matchPts = sumPoints(matches);
+  const specialPts = sumPoints(specials);
+
+  box.append(
+    el("div", { className: "rank-detail-head" },
+      el("strong", {}, playerName),
+      el("span", { className: "muted small" },
+        `${matchPts + specialPts} pts: ${matchPts} partidos + ${specialPts} especiales`)),
+    el("div", { className: "rank-detail-stats" },
+      statPill("Exactos", exact.length, sumPoints(exact)),
+      statPill("Signo", sign.length, sumPoints(sign)),
+      statPill("Errores", miss.length, 0),
+      statPill("Especiales", specials.length, specialPts)),
+  );
+
+  appendDetailGroup(box, "Exactos", exact, true);
+  appendDetailGroup(box, "Acerto signo", sign, false);
+  appendDetailGroup(box, "Errores", miss, false);
+  appendSpecialGroup(box, specials);
+}
+
+function statPill(label, count, points) {
+  return el("div", { className: "rank-stat" },
+    el("span", {}, label),
+    el("b", {}, `${count} / ${points} pts`));
+}
+
+function appendDetailGroup(box, title, rows, open) {
+  const details = el("details", { className: "rank-detail-group", open });
+  details.append(el("summary", {}, `${title} (${rows.length})`));
+  if (!rows.length) {
+    details.append(el("p", { className: "muted small" }, "Sin partidos."));
+    box.append(details);
+    return;
+  }
+  const tbody = el("tbody");
+  for (const r of rows) {
+    tbody.append(el("tr", {},
+      el("td", {}, formatMatchLabel(r.label)),
+      el("td", {}, r.result),
+      el("td", {}, r.prediction),
+      el("td", { className: "pts" }, String(r.points))));
+  }
+  details.append(detailTable(["Partido", "Resultado", "Pronostico", "Pts"], tbody));
+  box.append(details);
+}
+
+function appendSpecialGroup(box, rows) {
+  const details = el("details", { className: "rank-detail-group", open: true });
+  details.append(el("summary", {}, `Especiales acertados (${rows.length})`));
+  if (!rows.length) {
+    details.append(el("p", { className: "muted small" }, "Todavia no sumo especiales."));
+    box.append(details);
+    return;
+  }
+  const tbody = el("tbody");
+  for (const r of rows) {
+    tbody.append(el("tr", {},
+      el("td", {}, r.label),
+      el("td", {}, formatSpecialValue(r.prediction)),
+      el("td", {}, formatSpecialValue(r.result)),
+      el("td", { className: "pts" }, String(r.points))));
+  }
+  details.append(detailTable(["Especial", "Pronostico", "Real", "Pts"], tbody));
+  box.append(details);
+}
+
+function detailTable(headers, tbody) {
+  const thead = el("tr");
+  headers.forEach((h, i) =>
+    thead.append(el("th", i === headers.length - 1 ? { style: "text-align:right" } : {}, h)));
+  return el("table", { className: "rank-detail-table" }, el("thead", {}, thead), tbody);
+}
+
+function sumPoints(rows) {
+  return rows.reduce((sum, r) => sum + (Number(r.points) || 0), 0);
+}
+
+function formatMatchLabel(label) {
+  const parts = String(label || "").split(" vs ");
+  return parts.length === 2 ? `${T(parts[0])} vs ${T(parts[1])}` : (label || "");
+}
+
+function formatSpecialValue(value) {
+  return String(value || "")
+    .split(", ")
+    .map((v) => T(v))
+    .join(", ");
 }
 
 // =====================================================================

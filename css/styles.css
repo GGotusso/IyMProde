@@ -197,6 +197,34 @@ table.rank .you { margin-left: .45rem; font-size: .65rem; font-weight: 700; text
   border: 1px solid var(--accent); border-radius: 999px; padding: .05rem .4rem; vertical-align: middle; }
 table.rank tbody tr.me { background: rgba(52,211,153,.08); }
 table.rank tbody tr:hover { background: rgba(255,255,255,.03); }
+table.rank tbody tr.rank-click { cursor: pointer; }
+table.rank tbody tr.rank-click.open { background: rgba(52,211,153,.10); }
+table.rank tbody tr.rank-click:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+table.rank tbody tr.rank-detail-row:hover { background: transparent; }
+.rank-detail-row > td { padding: 0 !important; background: rgba(15,23,42,.42); }
+.rank-detail { padding: .9rem; display: grid; gap: .75rem; }
+.rank-detail-head { display: flex; justify-content: space-between; gap: .8rem; align-items: baseline; flex-wrap: wrap; }
+.rank-detail-head strong { font-size: 1rem; }
+.rank-detail-stats { display: grid; gap: .5rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rank-stat { background: var(--bg2); border: 1px solid var(--line); border-radius: 8px; padding: .55rem .65rem;
+  display: flex; justify-content: space-between; gap: .5rem; align-items: center; }
+.rank-stat span { color: var(--muted); font-size: .82rem; }
+.rank-stat b { color: var(--txt); font-size: .9rem; white-space: nowrap; }
+.rank-detail-group { background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.rank-detail-group summary { cursor: pointer; padding: .6rem .75rem; font-weight: 700; color: var(--txt); }
+.rank-detail-group p { padding: 0 .75rem .7rem; margin: 0; }
+.rank-detail-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.rank-detail-table th, .rank-detail-table td { padding: .45rem .65rem; border-top: 1px solid var(--line); text-align: left; }
+.rank-detail-table th { color: var(--muted); font-weight: 600; background: var(--bg2); }
+.rank-detail-table td.pts { text-align: right; color: var(--accent); font-weight: 800; }
+@media (min-width: 760px) {
+  .rank-detail-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .rank-detail { padding: .7rem; }
+  .rank-detail-table { font-size: .76rem; }
+  .rank-detail-table th, .rank-detail-table td { padding: .4rem .45rem; }
+}
 
 /* ---------- escudos ---------- */
 .crest { width: 22px; height: 22px; object-fit: contain; flex: 0 0 auto; }

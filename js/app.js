@@ -12,7 +12,7 @@ let session = loadSession();        // { player_id, name, token, is_admin }
 let matches = [];                   // cache del fixture
 let myPreds = new Map();            // match_id -> {home, away}
 const dirty = new Map();            // cambios sin guardar
-const AUTO_REFRESH_MS = 10_000;     // refresca resultados/rankings sin recargar la pagina
+const AUTO_REFRESH_MS = 5 * 60_000; // refresca resultados/rankings sin recargar la pagina
 let autoRefreshTimer = null;
 let autoRefreshRunning = false;
 

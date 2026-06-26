@@ -210,10 +210,10 @@ table.rank tbody tr.rank-detail-row:hover { background: transparent; }
   display: flex; justify-content: space-between; gap: .5rem; align-items: center; }
 .rank-stat span { color: var(--muted); font-size: .82rem; }
 .rank-stat b { color: var(--txt); font-size: .9rem; white-space: nowrap; }
-.rank-detail-group { background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.rank-detail-group { background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
 .rank-detail-group summary { cursor: pointer; padding: .6rem .75rem; font-weight: 700; color: var(--txt); }
 .rank-detail-group p { padding: 0 .75rem .7rem; margin: 0; }
-.rank-detail-table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.rank-detail-table { width: 100%; min-width: 520px; border-collapse: collapse; font-size: .82rem; }
 .rank-detail-table th, .rank-detail-table td { padding: .45rem .65rem; border-top: 1px solid var(--line); text-align: left; }
 .rank-detail-table th { color: var(--muted); font-weight: 600; background: var(--bg2); }
 .rank-detail-table td.pts { text-align: right; color: var(--accent); font-weight: 800; }

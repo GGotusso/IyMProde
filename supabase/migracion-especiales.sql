@@ -115,24 +115,19 @@ select player_id, sum(points)::int as points from (
   where sp.market like 'group\_%'
 ) x group by player_id;
 
--- 4) Ranking final = puntos de partidos + puntos especiales
+-- 4) Ranking final = solo puntos de partidos.
+--    Los especiales quedan guardados, pero ya no suman al ranking general.
 drop view if exists public.leaderboard;
 create view public.leaderboard as
 select
   p.id   as player_id,
   p.name as player_name,
-  (coalesce(mp.points, 0) + coalesce(sp.points, 0))::int as points,
-  coalesce(mp.exact_hits, 0)::int     as exact_hits,
-  coalesce(mp.scored_matches, 0)::int as scored_matches
+  coalesce(sum(s.points), 0)::int            as points,
+  coalesce(sum((s.points = 3)::int), 0)::int as exact_hits,
+  coalesce(count(s.match_id), 0)::int        as scored_matches
 from public.players p
-left join (
-  select player_id,
-         sum(points)            as points,
-         sum((points = 3)::int) as exact_hits,
-         count(match_id)        as scored_matches
-  from public.scored group by player_id
-) mp on mp.player_id = p.id
-left join public.special_points sp on sp.player_id = p.id
+left join public.scored s on s.player_id = p.id
+group by p.id, p.name
 order by points desc, exact_hits desc, p.name asc;
 
 grant select on public.leaderboard to anon, authenticated;

@@ -138,7 +138,6 @@ async function init() {
   $("#logout-btn").addEventListener("click", logout);
   $("#save-btn").addEventListener("click", savePredictions);
   $("#save-bar-btn").addEventListener("click", savePredictions);
-  $("#save-special-btn").addEventListener("click", saveSpecials);
   $("#today-only").addEventListener("change", renderPredictions);
   $("#pending-only").addEventListener("change", renderPredictions);
 
@@ -258,7 +257,6 @@ async function refreshLiveData() {
     const view = currentView();
     if (view === "ranking") renderRanking();
     else if (view === "mundial") renderMundial();
-    else if (view === "especiales") renderEspeciales();
     else if (view === "admin" && session.is_admin) renderAdmin();
     else if (view === "predictions" && dirty.size === 0) renderPredictions();
     else if (view === "fantasy" && !$("#fantasy-ranking-pane").classList.contains("hidden")) {
@@ -320,7 +318,7 @@ async function loadMyPredictions() {
 // A qué sección pertenece cada vista (Prode = pronósticos/ranking del Mundial,
 // Fantasy = plantel propio). El sub-nav muestra solo las vistas de la sección activa.
 const VIEW_SECTION = {
-  predictions: "prode", ranking: "prode", especiales: "prode",
+  predictions: "prode", ranking: "prode",
   mundial: "prode", reglas: "prode", admin: "prode",
   fantasy: "fantasy",
 };
@@ -374,7 +372,6 @@ function showView(view) {
 
   if (view === "predictions") renderPredictions();
   if (view === "ranking") renderRanking();
-  if (view === "especiales") renderEspeciales();
   if (view === "fantasy") renderFantasy();
   if (view === "mundial") renderMundial();
   if (view === "admin") renderAdmin();
@@ -667,7 +664,7 @@ function renderRanking() {
   const wrap = $("#ranking-table");
   wrap.innerHTML = `<div class="spinner">Cargando…</div>`;
   $("#rank-foot").innerHTML =
-    "<b>3</b> por marcador exacto · <b>1</b> por acertar el resultado · <b>0</b> si errás · más los puntos de los pronósticos especiales.";
+    "<b>3</b> por marcador exacto · <b>1</b> por acertar el resultado · <b>0</b> si errás.";
   sb.from("leaderboard").select("*").order("points", { ascending: false })
     .then(({ data, error }) => {
       if (error) { wrap.innerHTML = `<p class="error">${error.message}</p>`; return; }
@@ -923,29 +920,25 @@ async function loadRankDetail(playerId, playerName, box, seq) {
 function renderRankDetail(box, playerName, rows) {
   box.innerHTML = "";
   const matches = rows.filter((r) => r.item_type === "match");
-  const specials = rows.filter((r) => r.item_type === "special");
   const exact = matches.filter((r) => r.category === "exacto");
   const sign = matches.filter((r) => r.category === "signo");
   const miss = matches.filter((r) => r.category === "error");
   const matchPts = sumPoints(matches);
-  const specialPts = sumPoints(specials);
 
   box.append(
     el("div", { className: "rank-detail-head" },
       el("strong", {}, playerName),
       el("span", { className: "muted small" },
-        `${matchPts + specialPts} pts: ${matchPts} partidos + ${specialPts} especiales`)),
+        `${matchPts} pts en partidos`)),
     el("div", { className: "rank-detail-stats" },
       statPill("Exactos", exact.length, sumPoints(exact)),
       statPill("Signo", sign.length, sumPoints(sign)),
-      statPill("Errores", miss.length, 0),
-      statPill("Especiales", specials.length, specialPts)),
+      statPill("Errores", miss.length, 0)),
   );
 
   appendDetailGroup(box, "Exactos", exact, true);
   appendDetailGroup(box, "Acerto signo", sign, false);
   appendDetailGroup(box, "Errores", miss, false);
-  appendSpecialGroup(box, specials);
 }
 
 function statPill(label, count, points) {
@@ -974,26 +967,6 @@ function appendDetailGroup(box, title, rows, open) {
   box.append(details);
 }
 
-function appendSpecialGroup(box, rows) {
-  const details = el("details", { className: "rank-detail-group", open: true });
-  details.append(el("summary", {}, `Especiales acertados (${rows.length})`));
-  if (!rows.length) {
-    details.append(el("p", { className: "muted small" }, "Todavia no sumo especiales."));
-    box.append(details);
-    return;
-  }
-  const tbody = el("tbody");
-  for (const r of rows) {
-    tbody.append(el("tr", {},
-      el("td", {}, r.label),
-      el("td", {}, formatSpecialValue(r.prediction)),
-      el("td", {}, formatSpecialValue(r.result)),
-      el("td", { className: "pts" }, String(r.points))));
-  }
-  details.append(detailTable(["Especial", "Pronostico", "Real", "Pts"], tbody));
-  box.append(details);
-}
-
 function detailTable(headers, tbody) {
   const thead = el("tr");
   headers.forEach((h, i) =>
@@ -1008,13 +981,6 @@ function sumPoints(rows) {
 function formatMatchLabel(label) {
   const parts = String(label || "").split(" vs ");
   return parts.length === 2 ? `${T(parts[0])} vs ${T(parts[1])}` : (label || "");
-}
-
-function formatSpecialValue(value) {
-  return String(value || "")
-    .split(", ")
-    .map((v) => T(v))
-    .join(", ");
 }
 
 // =====================================================================
@@ -1197,157 +1163,6 @@ function th(label, right) { return el("th", right ? { style: "text-align:right" 
 function rowOf(tag, ...cells) { const r = el(tag); cells.forEach((c) => r.append(c)); return r; }
 
 // =====================================================================
-//  ESPECIALES · campeón, finalistas, semifinalistas y goleador
-// =====================================================================
-const SPECIAL_MARKETS = [
-  { key: "champion",      title: "🏆 Campeón",              count: 1, type: "team",   help: "15 pts si acertás el campeón." },
-  { key: "finalists",     title: "🥈 Finalistas (2)",        count: 2, type: "team",   help: "6 pts por cada finalista correcto." },
-  { key: "semifinalists", title: "4️⃣ Semifinalistas (4)",    count: 4, type: "team",   help: "4 pts por cada semifinalista correcto." },
-  { key: "top_scorer",    title: "⚽ Goleador del torneo",    count: 1, type: "player", help: "10 pts si acertás el goleador (Bota de Oro)." },
-];
-let specialInputs = {};   // key -> [inputEls]
-let specialMeta = {};     // key -> {count, type, title}
-let specialsLocked = false;
-
-// Equipos de la fase de grupos (los 48), ordenados.
-function teamsList() {
-  const set = new Set();
-  for (const m of matches) if (m.stage === "group") { set.add(m.home_team); set.add(m.away_team); }
-  return [...set].filter((t) => t && t !== "Por definir").sort((a, b) => a.localeCompare(b));
-}
-function groupLetters() {
-  return [...new Set(matches.filter((m) => m.stage === "group").map((m) => m.group_name))]
-    .filter(Boolean).sort();
-}
-function groupTeams(letter) {
-  const set = new Set();
-  for (const m of matches) if (m.stage === "group" && m.group_name === letter) {
-    set.add(m.home_team); set.add(m.away_team);
-  }
-  return [...set].filter((t) => t && t !== "Por definir").sort((a, b) => a.localeCompare(b));
-}
-function teamSelect(teams, value, locked) {
-  const sel = el("select", { disabled: locked });
-  sel.append(el("option", { value: "" }, "— elegí —"));
-  for (const t of teams) sel.append(el("option", { value: t }, T(t)));
-  if (value) sel.value = value;
-  return sel;
-}
-
-async function renderEspeciales() {
-  const wrap = $("#specials-form");
-  wrap.innerHTML = `<div class="spinner">Cargando…</div>`;
-
-  const deadlineIso = matches.reduce((min, m) => (!min || m.kickoff < min ? m.kickoff : min), null);
-  specialsLocked = !!deadlineIso && new Date(deadlineIso) <= new Date();
-  $("#special-deadline").textContent = deadlineIso
-    ? (specialsLocked ? "🔒 Cerrados: el Mundial ya arrancó." : "⏰ Se cierran al inicio del Mundial: " + fmtDate(deadlineIso))
-    : "";
-  $("#save-special-btn").disabled = specialsLocked;
-
-  const { data, error } = await sb.rpc("my_specials", { p_token: session.token });
-  if (error && error.message.includes("SESION_INVALIDA")) return logout();
-  const mine = {};
-  for (const r of data || []) mine[r.market] = r.picks;
-
-  specialInputs = {}; specialMeta = {};
-  wrap.innerHTML = "";
-  const teams = teamsList();
-
-  // --- mercados fijos ---
-  for (const mk of SPECIAL_MARKETS) {
-    const card = el("div", { className: "special-card" });
-    card.append(el("div", { className: "stage-title" }, mk.title));
-    card.append(el("p", { className: "muted small" }, mk.help));
-    const box = el("div", { className: "special-inputs" });
-    const picks = mine[mk.key] || [];
-    specialInputs[mk.key] = [];
-    specialMeta[mk.key] = { count: mk.count, type: mk.type, title: mk.title };
-    for (let i = 0; i < mk.count; i++) {
-      const input = mk.type === "team"
-        ? teamSelect(teams, picks[i], specialsLocked)
-        : el("input", { type: "text", placeholder: "Nombre del jugador (ej. Lionel Messi)",
-                        disabled: specialsLocked, value: picks[i] || "" });
-      specialInputs[mk.key].push(input);
-      box.append(input);
-    }
-    card.append(box);
-    wrap.append(card);
-  }
-
-  // --- 1º y 2º de cada grupo ---
-  const groups = groupLetters();
-  if (groups.length) {
-    const card = el("div", { className: "special-card" });
-    card.append(el("div", { className: "stage-title" }, "🥇 1º y 2º de cada grupo"));
-    card.append(el("p", { className: "muted small" }, "3 pts por acertar el 1º y 2 pts por el 2º, en cada grupo."));
-    const grid = el("div", { className: "group-picks" });
-    for (const g of groups) {
-      const key = "group_" + g;
-      const gt = groupTeams(g);
-      const picks = mine[key] || [];
-      specialInputs[key] = [];
-      specialMeta[key] = { count: 2, type: "team", title: "Grupo " + g };
-      const s1 = teamSelect(gt, picks[0], specialsLocked);
-      const s2 = teamSelect(gt, picks[1], specialsLocked);
-      specialInputs[key].push(s1, s2);
-      const row = el("div", { className: "group-pick-row" });
-      row.append(
-        el("span", { className: "gp-label" }, "Grupo " + g),
-        el("span", { className: "gp-slot" }, "1º"), s1,
-        el("span", { className: "gp-slot" }, "2º"), s2,
-      );
-      grid.append(row);
-    }
-    card.append(grid);
-    wrap.append(card);
-  }
-}
-
-async function saveSpecials() {
-  if (specialsLocked) { specialStatus("🔒 Los especiales ya están cerrados.", "err"); return; }
-  specialStatus("Guardando…");
-  let saved = 0;
-  for (const key of Object.keys(specialInputs)) {
-    const meta = specialMeta[key];
-    const vals = specialInputs[key].map((i) => i.value.trim()).filter(Boolean);
-    if (vals.length === 0) continue;                 // mercado vacío, se saltea
-    if (vals.length !== meta.count) {
-      specialStatus(`Completá los ${meta.count} de "${meta.title}" (o dejalos vacíos).`, "err");
-      return;
-    }
-    if (meta.type === "team" && new Set(vals).size !== vals.length) {
-      specialStatus(`No repitas equipos en "${meta.title}".`, "err");
-      return;
-    }
-    const { error } = await sb.rpc("save_special", {
-      p_token: session.token, p_market: key, p_picks: vals,
-    });
-    if (error) {
-      if (error.message.includes("SESION_INVALIDA")) return logout();
-      if (error.message.includes("ESPECIALES_CERRADOS")) { specialsLocked = true; specialStatus("🔒 Se cerraron los especiales.", "err"); return; }
-      specialStatus("Error: " + error.message, "err");
-      return;
-    }
-    saved++;
-  }
-  if (saved) {
-    specialStatus("");
-    toast(`✅ Guardado (${saved} pronóstico${saved > 1 ? "s" : ""}).`, "ok");
-  } else {
-    specialStatus("No completaste ninguno todavía.", "err");
-  }
-}
-
-function specialStatus(text, kind) {
-  const s = $("#special-status");
-  if (!text) { s.classList.add("hidden"); return; }
-  s.textContent = text;
-  s.className = "status" + (kind ? " " + kind : "");
-  s.classList.remove("hidden");
-}
-
-// =====================================================================
 //  ADMIN · cargar resultados y resolver equipos
 // =====================================================================
 function bindAdminTabs() {
@@ -1495,7 +1310,7 @@ async function renderAdminPlayers() {
   }
   wrap.innerHTML = "";
   wrap.append(el("p", { className: "muted small" },
-    "Borrar un jugador elimina también sus pronósticos y especiales. No se puede deshacer."));
+    "Borrar un jugador elimina también sus pronósticos. No se puede deshacer."));
   const list = el("div", { className: "admin-players-list" });
   for (const p of data || []) list.append(adminPlayerCard(p));
   wrap.append(list);
@@ -1542,7 +1357,7 @@ function adminPlayerCard(p) {
   delBtn.disabled = isMe;
   if (isMe) delBtn.title = "No te podés borrar a vos mismo";
   delBtn.addEventListener("click", () => {
-    if (!confirm(`¿Borrar a ${p.name}? Se eliminan sus pronósticos y especiales. No se puede deshacer.`)) return;
+    if (!confirm(`¿Borrar a ${p.name}? Se eliminan sus pronósticos. No se puede deshacer.`)) return;
     adminAction(delBtn, "admin_delete_player",
       { p_token: session.token, p_player_id: p.id }, `${p.name} eliminado.`);
   });

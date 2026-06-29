@@ -1,15 +1,33 @@
 -- =====================================================================
---  MIGRACION: desglose de puntos desde el ranking
---  Seguro de correr: no borra nada. Pegar en Supabase -> SQL Editor -> Run.
+--  MIGRACION: ranking solo por pronosticos de partidos
+--  Seguro de correr: no borra datos ni tablas.
 --
---  Devuelve, para un jugador, todos los partidos ya puntuados separados en
---  exacto/signo/error. No incluye pronosticos especiales.
+--  Objetivo:
+--  - El ranking general vuelve a sumar solamente public.scored.
+--  - El desglose del ranking devuelve solamente partidos.
+--  - Los datos historicos de especiales, si existen, quedan guardados pero
+--    ya no afectan ninguna suma del ranking.
 -- =====================================================================
+
+drop view if exists public.leaderboard;
+create view public.leaderboard as
+select
+  p.id   as player_id,
+  p.name as player_name,
+  coalesce(sum(s.points), 0)::int            as points,
+  coalesce(sum((s.points = 3)::int), 0)::int as exact_hits,
+  coalesce(count(s.match_id), 0)::int        as scored_matches
+from public.players p
+left join public.scored s on s.player_id = p.id
+group by p.id, p.name
+order by points desc, exact_hits desc, p.name asc;
+
+grant select on public.leaderboard to anon, authenticated;
 
 create or replace function public.player_score_breakdown(p_player_id uuid)
 returns table(
-  item_type  text,        -- 'match'
-  category   text,        -- 'exacto' | 'signo' | 'error'
+  item_type  text,
+  category   text,
   label      text,
   result     text,
   prediction text,

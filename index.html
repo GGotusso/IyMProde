@@ -32,7 +32,6 @@
     <nav id="nav">
       <button data-view="predictions" data-section="prode" class="nav-btn active"><span class="ni">📝</span><span class="nl">Pronósticos</span><span id="pending-badge" class="nav-badge hidden"></span></button>
       <button data-view="ranking" data-section="prode" class="nav-btn"><span class="ni">🏆</span><span class="nl">Ranking</span></button>
-      <button data-view="especiales" data-section="prode" class="nav-btn"><span class="ni">⭐</span><span class="nl">Especiales</span></button>
       <button data-view="mundial" data-section="prode" class="nav-btn"><span class="ni">🌎</span><span class="nl">Mundial</span></button>
       <button data-view="reglas" data-section="prode" class="nav-btn"><span class="ni">📋</span><span class="nl">Reglas</span></button>
       <button data-view="admin" data-section="prode" class="nav-btn hidden" id="nav-admin"><span class="ni">⚙️</span><span class="nl">Admin</span></button>
@@ -117,18 +116,7 @@
         <select id="h2h-select"></select>
       </div>
       <div id="ranking-table"></div>
-      <p class="muted small" id="rank-foot"><b>3</b> por marcador exacto · <b>1</b> por acertar el resultado · <b>0</b> si errás · más los puntos de los pronósticos especiales.</p>
-    </section>
-
-    <!-- ================= ESPECIALES ================= -->
-    <section id="view-especiales" class="view hidden">
-      <div class="view-head">
-        <h2>⭐ Pronósticos especiales</h2>
-        <button id="save-special-btn" class="primary">Guardar</button>
-      </div>
-      <p class="muted" id="special-deadline"></p>
-      <p id="special-status" class="status hidden"></p>
-      <div id="specials-form" class="specials"></div>
+      <p class="muted small" id="rank-foot"><b>3</b> por marcador exacto · <b>1</b> por acertar el resultado · <b>0</b> si errás.</p>
     </section>
 
     <!-- =================== FANTASY =================== -->
@@ -293,24 +281,11 @@
         <p class="muted small">El cierre es individual por partido, según su fecha y hora.</p>
       </div>
 
-      <!-- Especiales -->
-      <div class="rule-card">
-        <div class="rule-head"><span class="rule-ico">⭐</span><h3>Pronósticos especiales</h3></div>
-        <p class="muted small">Se cargan en la pestaña <b>Especiales</b> y cierran al <b>inicio del Mundial</b>. Suman al ranking general.</p>
-        <ul class="rule-list">
-          <li><span class="pts-chip">15</span> Campeón del Mundial</li>
-          <li><span class="pts-chip">6</span> Cada finalista correcto (son 2)</li>
-          <li><span class="pts-chip">4</span> Cada semifinalista correcto (son 4)</li>
-          <li><span class="pts-chip">3</span><span class="pts-chip">2</span> 1º y 2º de cada grupo (3 pts el 1º, 2 pts el 2º)</li>
-          <li><span class="pts-chip">10</span> Goleador del torneo (Bota de Oro)</li>
-        </ul>
-      </div>
-
       <!-- Ranking + automático + cuenta -->
       <div class="two-col">
         <div class="rule-card">
           <div class="rule-head"><span class="rule-ico">🏆</span><h3>Ranking</h3></div>
-          <p class="muted small">Suma de <b>todos</b> tus puntos (partidos + especiales), ordenado de mayor a menor con todos los jugadores. Desempata quien tenga más <b>marcadores exactos</b>.</p>
+          <p class="muted small">Suma solamente los puntos de tus <b>pronósticos de partidos</b>, ordenado de mayor a menor con todos los jugadores. Desempata quien tenga más <b>marcadores exactos</b>.</p>
         </div>
         <div class="rule-card">
           <div class="rule-head"><span class="rule-ico">🔄</span><h3>Resultados automáticos</h3></div>
@@ -352,7 +327,7 @@
 
   <div id="toasts" class="toasts"></div>
 
-  <script type="module" src="./js/app.js?v=19"></script>
+  <script type="module" src="./js/app.js?v=20"></script>
   <script src="./js/tanke.js?v=4" defer></script>
 </body>
 </html>

@@ -3,7 +3,7 @@
 --  Seguro de correr: NO borra datos. Pegar en Supabase -> SQL Editor -> Run.
 --
 --  Todas las funciones validan que QUIEN LLAMA sea admin (token + is_admin).
---  Borrar un jugador elimina en cascada sus pronósticos y especiales
+--  Borrar un jugador elimina en cascada sus pronosticos
 --  (FK on delete cascade ya definidas en el schema).
 -- =====================================================================
 
